@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Device Trail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E6EAEE; --surface:#FFFFFF; --surface-2:#F3F5F7; --ink:#14202B; --ink-2:#4A5866; --line:#CBD3DB;
+  --accent:#1F5FA8; --accent-ink:#FFFFFF;
+  --t-neutral:#7A8794; --t-intake:#1F5FA8; --t-hazard:#D9A400; --t-red:#C2362F; --t-bench:#5B4FC4;
+  --t-green:#2E8B57; --t-cpo:#9A5B13; --t-new:#16808A; --t-muted:#9AA6B2; --t-event:#B0397A;
+  --display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --bg:#0F151B; --surface:#18212A; --surface-2:#1F2A35; --ink:#E7EDF2; --ink-2:#9FB0BF; --line:#2E3B48;
+  --accent:#5B9BE0; --accent-ink:#0B1218; --t-neutral:#8A98A6; --t-intake:#5B9BE0; --t-hazard:#E8BC2C; --t-red:#E2625B;
+  --t-bench:#8D84E6; --t-green:#4CB57B; --t-cpo:#C98B45; --t-new:#3BB1BB; --t-muted:#6B7886; --t-event:#E07AB4;
+}}
+:root[data-theme="dark"]{
+  --bg:#0F151B; --surface:#18212A; --surface-2:#1F2A35; --ink:#E7EDF2; --ink-2:#9FB0BF; --line:#2E3B48;
+  --accent:#5B9BE0; --accent-ink:#0B1218; --t-neutral:#8A98A6; --t-intake:#5B9BE0; --t-hazard:#E8BC2C; --t-red:#E2625B;
+  --t-bench:#8D84E6; --t-green:#4CB57B; --t-cpo:#C98B45; --t-new:#3BB1BB; --t-muted:#6B7886; --t-event:#E07AB4;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--body);-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.15}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;max-width:1200px;margin:0 auto}
+.brand h1{font-size:1.65rem;font-weight:700;letter-spacing:-.01em}
+.brand .who{font-size:.85rem;color:var(--ink-2)}
+.scan{max-width:1200px;margin:10px auto 0;display:flex;gap:8px}
+.scan input{flex:1;min-width:0;padding:12px 14px;border:2px solid var(--line);border-radius:10px;background:var(--surface);font-size:1.05rem}
+.scan input:focus{border-color:var(--accent);outline:none}
+.btn{border:0;border-radius:10px;padding:11px 16px;font-family:var(--display);font-weight:600;font-size:1rem;cursor:pointer;background:var(--surface-2);color:var(--ink);white-space:nowrap}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.tabs{max-width:1200px;margin:10px auto 0;display:flex;gap:4px}
+.tabs button{background:none;border:0;padding:8px 12px;border-radius:8px;font-family:var(--display);font-weight:600;font-size:1rem;color:var(--ink-2);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:inset 0 -3px 0 var(--accent)}
+.banner{max-width:1200px;margin:10px auto 0;font-size:.9rem;color:var(--ink-2);background:var(--surface-2);padding:8px 12px;border-radius:8px}
+main{max-width:1200px;margin:0 auto;padding:16px}
+
+/* Floor board: the hang-tag columns */
+.floor{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.loc{background:var(--surface);border-radius:12px;overflow:hidden;border:1px solid var(--line);display:flex;flex-direction:column}
+.loc-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:6px solid var(--tone)}
+.loc-head h2{font-size:1.15rem;font-weight:600;flex:1}
+.count{font-family:var(--display);font-weight:700;font-size:1.6rem;color:var(--tone);line-height:1}
+.loc ul{list-style:none;margin:0;padding:0 8px 8px}
+.loc li button{width:100%;text-align:left;background:var(--surface-2);border:0;border-radius:8px;padding:9px 10px;margin-top:6px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+.loc li button:hover{background:color-mix(in srgb,var(--tone) 14%,var(--surface-2))}
+.serial{font-family:var(--display);font-weight:600;font-size:1rem;overflow-wrap:anywhere}
+.model{font-size:.85rem;color:var(--ink-2);grid-column:1}
+.since{font-size:.8rem;color:var(--ink-2);grid-row:1 / span 2;grid-column:2;align-self:center;text-align:right}
+.empty-loc{padding:6px 14px 14px;color:var(--ink-2);font-size:.9rem}
+.more{padding:8px 14px 12px;font-size:.85rem;color:var(--ink-2)}
+
+/* Lists */
+.list{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:12px 14px;border-top:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;cursor:pointer}
+.row:first-child{border-top:0}
+.row:hover{background:var(--surface-2)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;font-weight:600;padding:3px 9px 3px 7px;border-radius:999px;background:color-mix(in srgb,var(--tone) 16%,transparent);color:var(--ink);white-space:nowrap}
+.chip::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--tone)}
+.meta{font-size:.85rem;color:var(--ink-2)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.toolbar h2{font-size:1.3rem}
+.empty{padding:28px 18px;text-align:center;color:var(--ink-2)}
+.empty .btn{margin-top:12px}
+
+/* Sheet */
+dialog{border:0;padding:0;border-radius:16px;background:var(--surface);color:var(--ink);width:min(640px,100% - 24px);max-height:calc(100% - 24px)}
+dialog::backdrop{background:rgba(10,16,22,.55)}
+.sheet{display:flex;flex-direction:column;max-height:calc(100dvh - 24px)}
+.sheet-head{padding:16px 18px 12px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+.sheet-head h2{font-size:1.45rem;flex:1;overflow-wrap:anywhere}
+.sheet-body{padding:14px 18px 20px;overflow:auto}
+.x{background:none;border:0;font-size:1.6rem;line-height:1;padding:2px 6px;cursor:pointer;color:var(--ink-2)}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:.95rem;margin:0 0 14px}
+.facts dt{color:var(--ink-2)}
+.facts dd{margin:0;overflow-wrap:anywhere}
+.section{margin-top:18px}
+.section h3{font-size:1.1rem;margin-bottom:8px}
+.dest{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.dest button{border:2px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 10px;text-align:left;cursor:pointer;font-size:.92rem;display:flex;gap:8px;align-items:center}
+.dest button::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;background:var(--tone)}
+.dest button[aria-pressed="true"]{border-color:var(--tone);background:color-mix(in srgb,var(--tone) 12%,var(--surface))}
+label{display:block;font-size:.9rem;font-weight:500;margin:10px 0 4px}
+input[type=text],input[type=date],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:1rem}
+textarea{min-height:64px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.timeline{list-style:none;margin:0;padding:0;border-left:2px solid var(--line);margin-left:6px}
+.timeline li{position:relative;padding:0 0 14px 16px}
+.timeline li::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--tone,var(--ink-2));border:2px solid var(--surface)}
+.timeline .what{font-weight:600}
+.timeline .note{font-size:.9rem;color:var(--ink-2);white-space:pre-wrap}
+.dnr{background:var(--surface-2);border-radius:8px;padding:8px 10px;margin-top:6px;font-size:.9rem}
+.dnr dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:0}
+.dnr dt{color:var(--ink-2)}
+.dnr dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.nudge{background:color-mix(in srgb,var(--t-hazard) 20%,var(--surface));border-radius:10px;padding:10px 12px;margin-top:12px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.editbox{background:var(--surface-2);border-radius:10px;padding:12px;margin-bottom:12px}.editbox h3{font-size:1.1rem}.editbox .meta{margin:4px 0 0}
+.datebar{display:flex;gap:8px}.datebar input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:1rem}
+.nudge.soft{background:var(--surface-2);margin:0 0 12px}
+.bklist{list-style:none;margin:0;padding:0}.bklist li{padding:8px 0;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}.bklist li.dup{opacity:.75}
+.fixrow{display:flex;gap:6px;width:100%}.fixrow input{flex:1;min-width:0;padding:7px 10px}.btn.sm{padding:6px 11px;font-size:.9rem}
+.tag{display:inline-block;font-size:.75rem;font-weight:600;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,var(--t-event) 16%,transparent);color:var(--ink);border:0;font-family:var(--body);vertical-align:middle}
+.tag.back{background:color-mix(in srgb,var(--t-green) 18%,transparent)}
+.tagbar{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 6px}.tagbar .tag{cursor:pointer;padding:3px 10px;font-size:.8rem}
+.nudge.loaner{background:color-mix(in srgb,var(--t-event) 14%,var(--surface));margin:0 0 12px}
+.dest button.locked{opacity:.55;border-style:dashed}
+.stop{margin-top:10px;padding:12px;border-radius:10px;border:2px solid var(--t-red);background:color-mix(in srgb,var(--t-red) 10%,var(--surface));display:flex;flex-direction:column;gap:4px}
+.att{display:inline-block;margin-top:8px}.att img{max-width:100%;max-height:220px;border-radius:8px;border:1px solid var(--line);display:block}
+input[type=file]{width:100%;font-size:.9rem}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}.quick select{width:100%}
+.tag.who{background:color-mix(in srgb,var(--t-intake) 18%,transparent)}
+.tag.cond.c-needs-repair{background:color-mix(in srgb,var(--t-hazard) 22%,transparent)}.tag.cond.c-defective{background:color-mix(in srgb,var(--t-red) 22%,transparent)}
+.tag.cond.c-good,.tag.cond.c-new{background:color-mix(in srgb,var(--t-green) 16%,transparent)}
+.tag.arch{background:color-mix(in srgb,var(--t-muted) 30%,transparent)}.tag.void{background:color-mix(in srgb,var(--t-red) 22%,transparent)}
+.nudge.shelf{background:var(--surface-2);margin:0 0 12px}
+.btn.danger{background:var(--t-red);color:#fff}
+.logf{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:8px}
+.areabtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 12px;font-family:var(--display);font-weight:600;cursor:pointer;margin-right:auto}
+.chooser{max-width:520px;margin:12px auto;display:flex;flex-direction:column;gap:10px}.chooser h2{font-size:1.4rem}
+.areacard{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer}
+.areacard:hover{border-color:var(--accent)}.areacard .serial{font-size:1.3rem}
+[hidden]{display:none!important}
+.err{color:var(--t-red);font-size:.9rem;margin-top:8px}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:500;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.show{opacity:1}
+@media (max-width:560px){
+  .grid2{grid-template-columns:1fr}
+  dialog{width:100%;max-width:100%;margin:auto 0 0;border-radius:16px 16px 0 0;max-height:92dvh}
+  .sheet{max-height:92dvh}
+  .brand h1{font-size:1.4rem}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+
+/* Plate scanner */
+.scanblock{border:1px dashed var(--line);border-radius:12px;padding:12px;margin-bottom:6px;background:var(--surface-2)}
+.scanblock .lead{font-size:.9rem;color:var(--ink-2);margin:0 0 8px}
+.camwrap{position:relative;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:4/3;display:none}
+.camwrap.on{display:block}
+.camwrap video{width:100%;height:100%;object-fit:cover;display:block}
+.reticle{position:absolute;left:8%;right:8%;top:38%;height:24%;border:2px solid #fff;border-radius:8px;box-shadow:0 0 0 2000px rgba(0,0,0,.35);pointer-events:none}
+.reticle span{position:absolute;top:-22px;left:0;color:#fff;font:600 .8rem var(--body);text-shadow:0 1px 2px #000}
+.scanbar{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.ocrstat{font-size:.88rem;color:var(--ink-2);margin-top:8px;min-height:1.2em}
+.cand{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cand button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 11px;cursor:pointer;font-family:var(--display);font-weight:600}
+.cand button:hover{border-color:var(--accent);color:var(--accent)}
+.scandebug{margin:8px 0;padding:10px;border:1px dashed var(--line,#999);border-radius:10px;font-size:13px;line-height:1.5;overflow-wrap:anywhere}.scandebug code{font-family:ui-monospace,Menlo,Consolas,monospace;background:rgba(127,127,127,.15);padding:1px 4px;border-radius:4px}.scandebug .btn{margin-top:6px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><h1>Device Trail</h1><button class="areabtn" id="areaBtn" data-act="chooseArea" hidden></button><span class="who" id="who">Service department</span></div>
+  <form class="scan" id="scanForm" autocomplete="off">
+    <input id="scan" type="search" inputmode="text" placeholder="Scan or type a serial number" aria-label="Scan or type a serial number">
+    <button class="btn primary" type="submit">Find</button>
+  </form>
+  <nav class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="floor">Floor</button>
+    <button role="tab" aria-selected="false" data-tab="devices">Devices</button>
+    <button role="tab" aria-selected="false" data-tab="holders">Custody</button>
+    <button role="tab" aria-selected="false" data-tab="activity">Transfer log</button>
+  </nav>
+  <div class="banner" id="banner" hidden></div>
+</header>
+<main id="main"></main>
+<dialog id="dlg"></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const LOCS = [
+  {id:"checkin",  name:"Check-in",       tone:"--t-neutral"},
+  {id:"intake",   name:"Service",           tone:"--t-intake"},
+  {id:"contam",   name:"Contamination closet",     tone:"--t-hazard"},
+  {id:"defective",name:"Defective closet",         tone:"--t-red"},
+  {id:"bench",    name:"In repair",             tone:"--t-bench"},
+  {id:"ready",    name:"Ready devices",  tone:"--t-green"},
+  {id:"cpo",      name:"CPO",                tone:"--t-cpo"},
+  {id:"newsale",  name:"New",           tone:"--t-new"},
+  {id:"event",    name:"Event units",  tone:"--t-event"},
+  {id:"customer", name:"Customer units",              tone:"--t-intake"},
+  {id:"rep",      name:"Rep units",                 tone:"--t-cpo"},
+  {id:"sold",     name:"Sold",                     tone:"--t-new"},
+  {id:"shipped",  name:"Returned to manufacturer", tone:"--t-muted"},
+];
+const LOC = Object.fromEntries(LOCS.map(l=>[l.id,l]));
+const UNIT_TYPES=["New","Demo","Loaner","Replacement","CPO"];
+const CONDITIONS=["New","Good","Needs repair","Defective"];
+// Locations that need a name: who has it
+const HOLDER={customer:"customer", sold:"customer", rep:"rep"};
+const OUT=["event","customer","rep","sold","shipped"];
+const isOut = d => OUT.includes(d.location);
+const START_LOCS = LOCS.filter(l=>!OUT.includes(l.id) || l.id==="event");
+// Older records used a single "shipped as" tag. Fold it into location and unit type.
+function normalize(d){
+  if(!d || !d.outAs) return d;
+  const t=d.outAs;
+  if(d.location==="shipped"){ if(t==="Sold") d.location="sold"; else if(t==="Loaner"||t==="Replacement") d.location="customer"; }
+  if(!d.unitType && UNIT_TYPES.includes(t)) d.unitType=t;
+  delete d.outAs; return d;
+}
+function lastMove(d){ const ev=(d.events||[]).filter(e=>e.t==="move"); return ev[ev.length-1]; }
+const active=d=>!d.archived && !d.voided;
+const slug=s=>String(s||"").toLowerCase().replace(/[^a-z]+/g,"-");
+function tagChip(d){
+  const t=[];
+  if(d.voided) t.push(`<span class="tag void">Voided</span>`); else if(d.archived) t.push(`<span class="tag arch">Archived</span>`);
+  if(d.unitType) t.push(`<span class="tag">${esc(d.unitType)}</span>`);
+  if(d.condition) t.push(`<span class="tag cond c-${slug(d.condition)}">${esc(d.condition)}</span>`);
+  if(HOLDER[d.location] && d.holder) t.push(`<span class="tag who">${esc(d.holder)}</span>`);
+  const m=lastMove(d); if(m?.returned && (d.location==="checkin"||d.location==="intake")) t.push(`<span class="tag back">Returned ${esc(m.returned.toLowerCase())}</span>`);
+  return t.join(" ");
+}
+function outText(x){
+  const who=x.holder;
+  return x.location==="sold" ? `was sold to ${who||"a customer"}`
+    : x.location==="customer" ? `is at ${who||"a customer"}${x.unitType?` as a ${x.unitType.toLowerCase()}`:""}`
+    : x.location==="rep" ? `is with ${who?"rep "+who:"a rep"}`
+    : x.location==="event" ? "is out at an event"
+    : "went back to the manufacturer";
+}
+// Moves that put a device back in front of customers or into sellable stock
+const CLEAN_ONLY = ["ready","newsale","cpo","event","customer","rep","sold","shipped"];
+// Not cleared: latest DNR that answered the sanitized question said No, and it hasn't left the contamination closet since
+function notCleared(d){
+  const ev=d.events||[]; let i=ev.length-1;
+  for(; i>=0; i--) if(ev[i].t==="dnr" && (ev[i].sanitized==="Yes"||ev[i].sanitized==="No")) break;
+  if(i<0 || ev[i].sanitized!=="No") return false;
+  return !ev.slice(i+1).some(e=>e.t==="move" && e.from==="contam");
+}
+const FAIL_TYPES=["Electrical","Mechanical","Optical or laser","Software","Handpiece","Cooling","Cosmetic","No fault found","Other"];
+const SOURCES = ["Shipment","Rep return","Customer return","Other"];
+
+const AREAS=[{id:"capital",name:"Capital",desc:"Devices with their own serial: check-in, floor, custody, DNRs"},{id:"bio",name:"Bio",desc:"Biologics by lot, batch, and expiration"},{id:"other",name:"Other",desc:"Anything that doesn't fit the first two"}];
+const AKEY="device-trail-area";
+const savedArea=(()=>{ try{ return localStorage.getItem(AKEY)||""; }catch{ return ""; } })();
+const state = { area:savedArea, tab:"floor", devices:new Map(), mode:"loading", me:null, names:{}, filter:"", holder:null, showShelved:false, log:{type:"move",range:"7",loc:"",who:""}, openId:null, canWrite:true };
+let store = null, userCap = null, downloadsCap = null, assetsCap = null, dnrFile = null;
+let tessReady=null, camStream=null;
+function loadTesseract(){
+  if(tessReady) return tessReady;
+  tessReady = new Promise((res,rej)=>{
+    const s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    s.onload=()=>res(window.Tesseract); s.onerror=()=>rej(new Error("load"));
+    document.head.appendChild(s);
+  });
+  return tessReady;
+}
+let zxReady=null, bcTimer=null, bcDetector=null;
+function loadZxing(){
+  if(zxReady) return zxReady;
+  zxReady=new Promise((res,rej)=>{ const s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
+    s.onload=()=>res(window.ZXing); s.onerror=()=>rej(new Error("load")); document.head.appendChild(s); });
+  return zxReady;
+}
+function stopCam(){ clearTimeout(bcTimer); bcTimer=null; if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } }
+
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const tone = id => `--tone:var(${(LOC[id]||LOC.checkin).tone})`;
+const now = () => new Date().toISOString();
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+function ago(iso){
+  if(!iso) return "";
+  const m = Math.round((Date.now()-new Date(iso))/60000);
+  if(m<1) return "just now"; if(m<60) return m+"m";
+  const h=Math.round(m/60); if(h<48) return h+"h";
+  return Math.round(h/24)+"d";
+}
+const stamp = iso => new Date(iso).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("show"),2600); }
+function nameOf(id){ if(!id) return "Someone"; if(id===state.me) return "You"; return state.names[id] || (id.startsWith("local")?"This device":"Someone"); }
+
+/* ---------- Storage: shared db when available, this browser otherwise ---------- */
+const LKEY = "device-trail-v1";
+function localAdapter(){
+  let subs=[];
+  const read=()=>{ try{ return JSON.parse(localStorage.getItem(LKEY)||"{}"); }catch{ return {}; } };
+  const emit=()=>{ const all=read(); subs.forEach(f=>f(all)); };
+  return {
+    subscribe(f){ subs.push(f); f(read()); },
+    async save(id,doc){ const all=read(); all[id]=doc; try{ localStorage.setItem(LKEY,JSON.stringify(all)); }catch{ throw {code:"local"}; } emit(); },
+  };
+}
+function dbAdapter(db){
+  return {
+    subscribe(f){
+      db.collection("devices").onSnapshot(snap=>{
+        const all={}; snap.docs.forEach(d=>{ if(d.exists) all[d.id]=d.data(); }); f(all);
+      }, err=>{ showBanner("Live sync stopped. Reload the page to reconnect."); });
+    },
+    async save(id,doc){ await db.doc("devices/"+id).set(doc); },
+    async fresh(id){ const s=await db.doc("devices/"+id).get(); return s.exists ? s.data() : null; },
+  };
+}
+function showBanner(msg){ const b=$("#banner"); b.textContent=msg; b.hidden=!msg; }
+
+async function boot(){
+  render();
+  let db=null;
+  try{ db = window.claude?.use ? await window.claude.use("db") : null; }catch{ db=null; }
+  try{ userCap = window.claude?.use ? await window.claude.use("user") : null; }catch{ userCap=null; }
+  try{ downloadsCap = window.claude?.use ? await window.claude.use("downloads") : null; }catch{ downloadsCap=null; }
+  try{ assetsCap = window.claude?.use ? await window.claude.use("assets") : null; }catch{ assetsCap=null; }
+  if(db){
+    store = dbAdapter(db); state.mode="shared";
+    try{ state.me = await userCap?.id(); }catch{}
+    try{ const w = await userCap?.can?.("data.write"); if(w===false) state.canWrite=false; }catch{}
+    if(!state.canWrite) showBanner("You can view the floor but not record transfers. Ask the owner for Contributor access.");
+  } else {
+    store = localAdapter(); state.mode="local";
+    state.me = "local-me";
+    showBanner("Saving on this device only. Open the published link in Claude to share records with the team.");
+  }
+  store.subscribe(all=>{
+    Object.values(all).forEach(normalize);
+    state.devices = new Map(Object.entries(all));
+    resolveNames(); render();
+    if(state.openId && $("#dlg").open) openDevice(state.openId, true);
+  });
+}
+async function resolveNames(){
+  if(!userCap?.profiles) return;
+  const ids=new Set();
+  state.devices.forEach(d=>(d.events||[]).forEach(e=>e.by && ids.add(e.by)));
+  const missing=[...ids].filter(i=>!(i in state.names) && !i.startsWith("local"));
+  if(!missing.length) return;
+  try{ const ps=await userCap.profiles(missing); for(const id of missing) state.names[id]=ps[id]?.name||""; render(); }catch{}
+}
+
+/* ---------- Helpers on device records ---------- */
+function lastMoveInto(d){ const ev=(d.events||[]).filter(e=>e.t==="move"); return ev.length? ev[ev.length-1].at : d.createdAt; }
+function sortedDevices(){ return [...state.devices.entries()].map(([id,d])=>({id,...d})).sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||"")); }
+function findBySerial(s){ s=s.trim().toLowerCase(); for(const [id,d] of state.devices) if(!d.voided && (d.serial||"").toLowerCase()===s) return id; return null; }
+
+async function writeDevice(id, mutate){
+  if(!state.canWrite){ toast("You don't have permission to record changes."); return false; }
+  let base = store.fresh ? await store.fresh(id).catch(()=>null) : null;
+  base = normalize(base || state.devices.get(id));
+  const next = structuredClone(base);
+  mutate(next); next.updatedAt = now();
+  try{ await store.save(id,next); return true; }
+  catch(e){
+    if(e?.code==="quota_exceeded") toast("Storage is full. Export the log and clear old shipped devices.");
+    else if(e?.code==="invalid_argument"){ state.canWrite=false; toast("You can't record changes here. Ask the owner for Contributor access."); }
+    else toast("Couldn't save. Check your connection and try again.");
+    return false;
+  }
+}
+
+/* ---------- Views ---------- */
+function chooserView(){
+  return `<div class="chooser"><h2>What are you working on?</h2><p class="meta">You can switch any time from the button next to the title.</p>
+    ${AREAS.map(a=>`<button class="areacard" data-area="${a.id}"><span class="serial">${a.name}</span><span class="meta">${a.desc}</span>${a.id!=="capital"?`<span class="tag">Coming soon</span>`:""}</button>`).join("")}</div>`;
+}
+function soonView(a){
+  const A=AREAS.find(x=>x.id===a);
+  return `<div class="list"><div class="empty"><h2>${esc(A.name)} is coming soon</h2>
+    <p>${a==="bio"?"Biologics get their own setup: tracked by lot and batch with expiration dates, scanned from their labels. We're gathering the process and label samples first.":"This is a home for items that aren't capital devices or biologics. It'll be built once the first two are settled."}</p>
+    <button class="btn primary" data-area="capital">Go to Capital devices</button></div></div>`;
+}
+function render(){
+  const ab=$("#areaBtn"), inCap=state.area==="capital";
+  if(ab){ ab.hidden=!state.area; ab.textContent=(AREAS.find(a=>a.id===state.area)?.name||"")+" ▾"; }
+  $(".tabs").hidden=!inCap; $("#scanForm").hidden=!inCap;
+  if(!inCap){ $("#main").innerHTML = state.area ? soonView(state.area) : chooserView(); return; }
+  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===state.tab)));
+  const m=$("#main");
+  if(state.mode==="loading"){ m.innerHTML=`<p class="empty">Loading the floor…</p>`; return; }
+  if(state.tab==="floor") m.innerHTML=floorView();
+  else if(state.tab==="devices") m.innerHTML=devicesView();
+  else if(state.tab==="holders") m.innerHTML=holdersView();
+  else m.innerHTML=activityView();
+}
+function deviceBtn(d){
+  return `<button data-open="${esc(d.id)}"><span class="serial">${esc(d.serial)}</span><span class="model">${esc(d.model||"Unknown model")} ${tagChip(d)}</span><span class="since">in ${esc(ago(lastMoveInto(d)))}</span></button>`;
+}
+function floorView(){
+  const all=sortedDevices().filter(active);
+  if(!all.length) return emptyAll();
+  return `<div class="floor">${LOCS.map(l=>{
+    const here=all.filter(d=>d.location===l.id).sort((a,b)=>lastMoveInto(a).localeCompare(lastMoveInto(b)));
+    const endState = l.id==="shipped"||l.id==="sold";
+    const cap = endState ? 8 : 40;
+    const shown = endState ? here.slice(-cap).reverse() : here.slice(0,cap);
+    return `<section class="loc" style="${tone(l.id)}">
+      <div class="loc-head"><h2>${esc(l.name)}</h2><span class="count" aria-label="${here.length} devices">${here.length}</span></div>
+      ${here.length&&(l.id==="customer"||l.id==="rep")?`<div class="tagbar">${[...new Set(here.map(d=>d.holder).filter(Boolean))].sort().slice(0,8).map(h=>`<button class="tag who" data-holder="${esc(h)}" data-kind="${HOLDER[l.id]}">${esc(h)} ${here.filter(d=>d.holder===h).length}</button>`).join("")}</div>`
+        : here.length&&l.id==="event"?`<div class="tagbar">${UNIT_TYPES.map(t=>[t,here.filter(d=>d.unitType===t).length]).filter(x=>x[1]).map(([t,n])=>`<button class="tag" data-tagfilter="${esc(t)}">${esc(t)} ${n}</button>`).join("")}</div>`:""}
+      ${here.length ? `<ul>${shown.map(d=>`<li>${deviceBtn(d)}</li>`).join("")}</ul>` : `<p class="empty-loc">Nothing here.</p>`}
+      ${here.length>cap ? `<p class="more">${here.length-cap} more in the Devices tab</p>` : ""}
+    </section>`;}).join("")}</div>`;
+}
+function emptyAll(){
+  return `<div class="list"><div class="empty"><h2>No devices on the floor yet</h2><p>Check in the first device to start its trail. Every transfer after that becomes a single tap.</p>${state.canWrite?`<button class="btn primary" data-act="checkin">Check in a device</button>`:""}</div></div>`;
+}
+function devicesView(){
+  const f=state.filter.trim().toLowerCase(), h=state.holder;
+  if(h) return holderDetail(h);
+  const shelvedN=sortedDevices().filter(d=>!active(d)).length;
+  const all=sortedDevices().filter(d=>(active(d)||state.showShelved||(f&&!d.voided)) && (!f || [d.serial,d.model,d.mfr,d.partNo,d.source,d.sourceNote,LOC[d.location]?.name,d.unitType,d.condition,d.holder].join(" ").toLowerCase().includes(f)));
+  return `<div class="toolbar"><h2>${f?`Matches for “${esc(state.filter)}”`:state.showShelved?"All devices, including archived and voided":"Active devices"} (${all.length})</h2>
+    <div style="display:flex;gap:8px">${downloadsCap?`<button class="btn ghost" data-act="export">Export CSV</button>`:""}${state.canWrite?`<button class="btn ghost" data-act="bulk">Bulk check-in</button><button class="btn primary" data-act="checkin">Check in</button>`:""}</div></div>
+    <div class="list">${all.length? all.map(d=>`<button class="row" data-open="${esc(d.id)}">
+      <span class="serial">${esc(d.serial)}</span><span class="chip" style="${tone(d.location)}">${esc(LOC[d.location]?.name)}</span>
+      <span class="meta">${esc(d.model||"Unknown model")} · from ${esc(d.source||"unknown")} ${tagChip(d)}</span><span class="meta">${ago(d.updatedAt)==="just now"?"just now":esc(ago(d.updatedAt))+" ago"}</span></button>`).join("")
+      : `<div class="empty">${f?"No device matches that. Clear the search or check it in.":"No devices yet."}</div>`}</div>
+    ${shelvedN?`<p class="more"><button class="btn ghost sm" data-act="toggleshelved">${state.showShelved?"Hide":"Show"} archived and voided (${shelvedN})</button></p>`:""}`;
+}
+function holdersView(){
+  const groups={rep:new Map(), customer:new Map()};
+  sortedDevices().filter(active).forEach(d=>{ const k=HOLDER[d.location]; if(!k) return; const n=d.holder||"Name not recorded";
+    if(!groups[k].has(n)) groups[k].set(n,[]); groups[k].get(n).push(d); });
+  const block=(kind,title,empty)=>{ const rows=[...groups[kind].entries()].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0]));
+    return `<div class="toolbar"><h2>${title} (${rows.length})</h2></div><div class="list">${rows.length?rows.map(([n,ds])=>{
+      const parts=kind==="customer"?[["At customer",ds.filter(d=>d.location==="customer").length],["Sold",ds.filter(d=>d.location==="sold").length]].filter(x=>x[1]).map(x=>`${x[1]} ${x[0].toLowerCase()}`):[];
+      const types=[...new Set(ds.map(d=>d.unitType).filter(Boolean))];
+      return `<button class="row" data-holder="${esc(n)}" data-kind="${kind}"><span class="serial">${esc(n)}</span><span class="count">${ds.length}</span>
+        <span class="meta">${[...parts,types.join(", ")].filter(Boolean).join(" · ")}</span><span class="meta">${esc([...new Set(ds.map(d=>d.model).filter(Boolean))].join(", "))}</span></button>`;}).join("")
+      :`<div class="empty">${empty}</div>`}</div>`; };
+  return block("rep","Reps holding devices","No devices are out with reps. Transfer one to With rep and name the rep.")
+    + block("customer","Customers","No devices are at customers or sold yet.");
+}
+function holderDetail(h){
+  const ds=sortedDevices().filter(d=>active(d) && HOLDER[d.location]===h.kind && (d.holder||"Name not recorded")===h.name);
+  const now_=new Set(ds.map(d=>d.id));
+  const past=sortedDevices().filter(d=>!d.voided && !now_.has(d.id) && (d.events||[]).some(e=>e.t==="move" && e.holder===h.name && HOLDER[e.to]===h.kind));
+  const row=d=>`<button class="row" data-open="${esc(d.id)}"><span class="serial">${esc(d.serial)}</span><span class="chip" style="${tone(d.location)}">${esc(LOC[d.location]?.name)}</span>
+    <span class="meta">${esc(d.model||"Unknown model")} ${tagChip(d)}</span><span class="meta">since ${esc(stamp(lastMoveInto(d)))}</span></button>`;
+  return `<div class="toolbar"><h2>${h.kind==="rep"?"Rep: ":""}${esc(h.name)} (${ds.length} now)</h2><button class="btn ghost" data-act="clearholder">Back</button></div>
+    <div class="list">${ds.length?ds.map(row).join(""):`<div class="empty">Nothing with ${esc(h.name)} right now.</div>`}</div>
+    ${past.length?`<div class="toolbar"><h2>Had before (${past.length})</h2></div><div class="list">${past.map(row).join("")}</div>`:""}`;
+}
+const LOG_TYPES=[["move","Transfers"],["dnr","DNR entries"],["changes","Field changes and corrections"],["shelf","Archive and void"],["all","Everything"]];
+const LOG_RANGES=[["1","Today"],["7","Last 7 days"],["30","Last 30 days"],["all","All time"]];
+function logText(e){
+  if(e.t==="move") return (e.from?`${esc(LOC[e.from]?.name)} to ${esc(LOC[e.to]?.name)}`:`Checked in at ${esc(LOC[e.to]?.name)}`)+(e.holder?`: ${esc(e.holder)}`:"")+(e.as?` as ${esc(e.as.toLowerCase())}`:"")+(e.returned?` (returned ${esc(e.returned.toLowerCase())}${e.fromHolder?` from ${esc(e.fromHolder)}`:""})`:"");
+  if(e.t==="field") return esc(fieldText(e));
+  if(e.t==="edit") return "Details corrected: "+esc(editText(e));
+  if(SHELF_TXT[e.t]) return SHELF_TXT[e.t];
+  return "DNR form recorded"+(e.failType?`: ${esc(e.failType)}`:"")+(e.failedPart?`, ${esc(e.failedPart)}`:"");
+}
+function activityView(){
+  const L=state.log, rows=[], people=new Set();
+  state.devices.forEach((d,id)=>(d.events||[]).forEach(e=>{ rows.push({...e,id,serial:d.serial,model:d.model}); if(e.by) people.add(e.by); }));
+  let since="";
+  if(L.range==="1"){ const t=new Date(); t.setHours(0,0,0,0); since=t.toISOString(); }
+  else if(L.range!=="all") since=new Date(Date.now()-(+L.range)*864e5).toISOString();
+  const typeOk=e=> L.type==="all" || (L.type==="move"&&e.t==="move") || (L.type==="dnr"&&e.t==="dnr") || (L.type==="changes"&&(e.t==="field"||e.t==="edit")) || (L.type==="shelf"&&!!SHELF_TXT[e.t]);
+  const hits=rows.filter(e=>typeOk(e) && (!since||e.at>=since) && (!L.loc||e.to===L.loc||e.from===L.loc) && (!L.who||e.by===L.who)).sort((a,b)=>b.at.localeCompare(a.at));
+  const top=hits.slice(0,150);
+  const opt=(list,val)=>list.map(([v,t])=>`<option value="${esc(v)}"${v===val?" selected":""}>${esc(t)}</option>`).join("");
+  return `<div class="toolbar"><h2>Transfer log</h2>${downloadsCap?`<button class="btn ghost" data-act="export">Export full log</button>`:""}</div>
+  <div class="logf">
+    <select data-logf="type" aria-label="What">${opt(LOG_TYPES,L.type)}</select>
+    <select data-logf="range" aria-label="When">${opt(LOG_RANGES,L.range)}</select>
+    <select data-logf="loc" aria-label="Location">${opt([["","Any location"],...LOCS.map(l=>[l.id,l.name])],L.loc)}</select>
+    <select data-logf="who" aria-label="Who">${opt([["","Anyone"],...[...people].map(p=>[p,nameOf(p)])],L.who)}</select>
+  </div>
+  <p class="meta" style="margin:0 0 8px">${hits.length} ${hits.length===1?"entry":"entries"}${hits.length>top.length?`, showing the newest ${top.length}`:""}. Each device keeps its full trail on its own page.</p>
+  <div class="list">${top.length? top.map(e=>`<button class="row" data-open="${esc(e.id)}">
+    <span><span class="serial">${esc(e.serial)}</span> <span class="meta">${esc(e.model||"")}</span></span><span class="meta">${esc(stamp(e.at))}</span>
+    <span class="meta">${logText(e)}${e.note?` · ${esc(e.note)}`:""}</span>
+    <span class="meta">${esc(nameOf(e.by))}</span></button>`).join("") : `<div class="empty">Nothing matches these filters. Widen the date range or pick Everything.</div>`}</div>`;
+}
+
+/* ---------- Device sheet ---------- */
+let pickDest=null, dnrOpen=false, editOpen=false, shelfOpen="";
+function openDevice(id, keepState){
+  const d=state.devices.get(id); if(!d) return;
+  state.openId=id; if(bulkMode){ bulkMode=false; stopCam(); }
+  if(!keepState){ pickDest=null; dnrOpen=false; editOpen=false; shelfOpen=""; }
+  const shelved=!active(d);
+  const dlg=$("#dlg");
+  const evs=[...(d.events||[])].reverse();
+  const lastDnr=[...(d.events||[])].reverse().find(e=>e.t==="dnr");
+  const needsSan = notCleared(d) && d.location!=="contam" && d.location!=="shipped";
+  dlg.innerHTML=`<div class="sheet">
+    <div class="sheet-head"><div style="flex:1"><h2>${esc(d.serial)}</h2><span class="chip" style="${tone(d.location)}">${esc(LOC[d.location]?.name)}${HOLDER[d.location]?`: ${esc(d.holder||"name not recorded")}`:""}</span></div>
+      <button class="x" data-act="close" aria-label="Close">×</button></div>
+    <div class="sheet-body">
+      ${editOpen?editForm(d):""}
+      <dl class="facts"${editOpen?" hidden":""}><dt>Model</dt><dd>${esc(d.model||"Not recorded")}</dd>${d.mfr?`<dt>Manufacturer</dt><dd>${esc(d.mfr)}</dd>`:""}${d.partNo?`<dt>Part #</dt><dd>${esc(d.partNo)}</dd>`:""}${d.mfg?`<dt>Manufactured</dt><dd>${esc(mfgLabel(d.mfg))}</dd>`:""}
+        <dt>Came from</dt><dd>${esc(d.source||"Not recorded")}${d.sourceNote?`, ${esc(d.sourceNote)}`:""}</dd>
+        <dt>Checked in</dt><dd>${esc(stamp(d.createdAt))} by ${esc(nameOf(d.createdBy))}</dd>
+        <dt>Here since</dt><dd>${esc(stamp(lastMoveInto(d)))}</dd></dl>
+      ${editOpen?"":`<div class="quick"><div><label for="qType">Unit type</label><select id="qType" data-field="unitType"${state.canWrite&&!shelved?"":" disabled"}><option value="">Not set</option>${UNIT_TYPES.map(u=>`<option${u===d.unitType?" selected":""}>${u}</option>`).join("")}</select></div>
+        <div><label for="qCond">Condition</label><select id="qCond" data-field="condition"${state.canWrite&&!shelved?"":" disabled"}><option value="">Not set</option>${CONDITIONS.map(u=>`<option${u===d.condition?" selected":""}>${u}</option>`).join("")}</select></div></div>`}
+      ${shelved?`<div class="nudge shelf"><span>${d.voided?`Voided as a mistaken entry ${esc(stamp(d.voided.at))} by ${esc(nameOf(d.voided.by))}. Reason: ${esc(d.voided.reason)}`:`Archived ${esc(stamp(d.archived.at))} by ${esc(nameOf(d.archived.by))}${d.archived.note?`. ${esc(d.archived.note)}`:""}`}. Its trail is kept.</span>${state.canWrite?`<button class="btn" data-act="${d.voided?"unvoid":"unarchive"}">${d.voided?"Undo void":"Restore"}</button>`:""}</div>`:""}
+      ${state.canWrite&&!editOpen&&!shelved?`<button class="btn ghost" data-act="edit">Edit details</button>`:""}
+      ${!shelved&&isOut(d)&&d.location!=="shipped"?`<div class="nudge loaner"><span>This unit ${esc(outText(d))} since ${esc(stamp(lastMoveInto(d)))}. When it comes back, check it in here.</span>${state.canWrite?`<button class="btn" data-act="returnback" data-id="${esc(id)}">Check back in</button>`:""}</div>`:""}
+      ${!d.mfg&&!editOpen&&state.canWrite?`<div class="nudge soft"><span>No manufacture date on file.</span><button class="btn" data-act="edit">Add it</button></div>`:""}
+      ${needsSan?`<div class="nudge"><span>Last DNR says this device isn't sanitized.</span>${state.canWrite?`<button class="btn" data-act="tocontam">Move to contamination closet</button>`:""}</div>`:""}
+      ${state.canWrite&&!shelved?`<div class="section"><h3>Transfer to</h3>
+        <div class="dest">${LOCS.filter(l=>l.id!==d.location).map(l=>`<button style="${tone(l.id)}" aria-pressed="${pickDest===l.id}" data-dest="${l.id}"${notCleared(d)&&CLEAN_ONLY.includes(l.id)?` class="locked" title="Not cleared as sanitized"`:""}>${esc(l.name)}</button>`).join("")}</div>
+        ${pickDest&&notCleared(d)&&CLEAN_ONLY.includes(pickDest)?`<div class="stop"><b>Stop. This device isn't cleared as sanitized.</b><span>The last DNR says it wasn't sanitized, and it hasn't been through the contamination closet since. It can't go to ${esc(LOC[pickDest].name)} until it's cleared.</span>
+          <div class="actions"><button class="btn" data-act="dnr">Add DNR marking it sanitized</button><button class="btn primary" data-act="tocontam">Move to contamination closet</button></div></div>`:""}
+        ${pickDest&&notCleared(d)&&CLEAN_ONLY.includes(pickDest)?"":`${pickDest&&HOLDER[pickDest]?`<label for="mvWho">${HOLDER[pickDest]==="rep"?"Which rep?":"Customer or company"}</label><input type="text" id="mvWho" list="holderlist" autocomplete="off" value="${esc(HOLDER[d.location]===HOLDER[pickDest]?d.holder||"":"")}" placeholder="${HOLDER[pickDest]==="rep"?"Rep's name":"Clinic or company name"}"><datalist id="holderlist">${knownHolders(HOLDER[pickDest]).map(h=>`<option value="${esc(h)}">`).join("")}</datalist>`:""}
+        ${pickDest?`<label for="mvNote">Note (optional)</label><input type="text" id="mvNote" placeholder="Tracking number, reason, bin…">
+        <div class="actions"><button class="btn ghost" data-act="cancelmove">Cancel</button><button class="btn primary" data-act="move">Record transfer to ${esc(LOC[pickDest].name)}</button></div>`:""}`}
+      </div>
+      <div class="section"><h3>Diagnosis and repair (DNR)</h3>
+        ${dnrOpen?dnrForm():`<button class="btn" data-act="dnr">Add DNR entry</button>`}
+      </div>`:""}
+      ${state.canWrite&&!shelved?`<div class="section"><h3>Take it off the floor</h3>${shelfForm()}</div>`:""}
+      <div class="section"><h3>Trail</h3><ul class="timeline">${evs.map(evItem).join("")}</ul></div>
+    </div></div>`;
+  if(!dlg.open) dlg.showModal();
+}
+function shelfForm(){
+  if(shelfOpen==="archive") return `<div class="editbox"><p class="meta">Archived units leave the Floor and Custody views. The unit and its whole trail stay searchable, and you can restore it any time.</p>
+    <label for="shNote">Why (optional)</label><input type="text" id="shNote" placeholder="e.g. Parted out, retired, sold years ago">
+    <div class="actions"><button class="btn ghost" data-act="cancelshelf">Cancel</button><button class="btn primary" data-act="doarchive">Archive this unit</button></div></div>`;
+  if(shelfOpen==="void") return `<div class="editbox"><p class="meta">Only for an entry that should never have existed, like a double check-in or a mistyped serial. It stays in the record, flagged as an error, and its serial is freed up.</p>
+    <label for="shNote">What was the mistake?</label><input type="text" id="shNote" placeholder="e.g. Duplicate of B4NVD302-087, typo in serial">
+    <p class="err" id="shErr" hidden></p>
+    <div class="actions"><button class="btn ghost" data-act="cancelshelf">Cancel</button><button class="btn primary danger" data-act="dovoid">Void this entry</button></div></div>`;
+  return `<div class="actions" style="justify-content:flex-start;margin-top:0"><button class="btn ghost" data-act="archive">Archive</button><button class="btn ghost" data-act="void">Void as mistaken entry</button></div>`;
+}
+async function shelve(kind){
+  const id=state.openId, note=$("#shNote")?.value.trim()||"";
+  if(kind==="void" && !note){ const e=$("#shErr"); e.textContent="Say what the mistake was, so the record makes sense later."; e.hidden=false; return; }
+  const ok=await writeDevice(id,x=>{ x.events=x.events||[]; const at=now();
+    if(kind==="archive"){ x.archived={at,by:state.me,note}; x.events.push({t:"archive",at,by:state.me,note}); }
+    if(kind==="void"){ x.voided={at,by:state.me,reason:note}; x.events.push({t:"void",at,by:state.me,note}); }
+    if(kind==="unarchive"){ delete x.archived; x.events.push({t:"unarchive",at,by:state.me}); }
+    if(kind==="unvoid"){ delete x.voided; x.events.push({t:"unvoid",at,by:state.me}); } });
+  if(ok){ shelfOpen=""; toast({archive:"Archived. Its trail is kept.",void:"Voided as a mistaken entry",unarchive:"Restored to the floor",unvoid:"Void undone"}[kind]); openDevice(id,true); }
+}
+const SHELF_TXT={archive:"Archived",unarchive:"Restored from archive",void:"Voided as a mistaken entry",unvoid:"Void undone"};
+function evItem(e){
+  if(SHELF_TXT[e.t]) return `<li style="--tone:var(--t-muted)"><div class="what">${SHELF_TXT[e.t]}</div><div class="meta">${esc(stamp(e.at))} · ${esc(nameOf(e.by))}</div>${e.note?`<div class="note">${esc(e.note)}</div>`:""}</li>`;
+  if(e.t==="move") return `<li style="${tone(e.to)}"><div class="what">${e.from?`${esc(LOC[e.from]?.name)} to ${esc(LOC[e.to]?.name)}`:`Checked in at ${esc(LOC[e.to]?.name)}`}${e.holder?` <span class="tag who">${esc(e.holder)}</span>`:""}${e.as?` <span class="tag">${esc(e.as)}</span>`:""}${e.returned?` <span class="tag back">Returned ${esc(e.returned.toLowerCase())}${e.fromHolder?` from ${esc(e.fromHolder)}`:""}</span>`:""}</div>
+    <div class="meta">${esc(stamp(e.at))} · ${esc(nameOf(e.by))}</div>${e.note?`<div class="note">${esc(e.note)}</div>`:""}</li>`;
+  if(e.t==="field") return `<li style="--tone:var(--ink-2)"><div class="what">${esc(fieldText(e))}</div><div class="meta">${esc(stamp(e.at))} · ${esc(nameOf(e.by))}</div></li>`;
+  if(e.t==="edit") return `<li style="--tone:var(--ink-2)"><div class="what">Details corrected</div><div class="meta">${esc(stamp(e.at))} · ${esc(nameOf(e.by))}</div><div class="note">${esc(editText(e))}</div></li>`;
+  const rows=[["Sanitized",e.sanitized],["Failure type",e.failType],["Failed part",e.failedPart],["Condition",e.condition],["Reported issue",e.issue],["Diagnosis",e.diagnosis],["Repair",e.repair],["Parts",e.parts],["Notes",e.notes]].filter(r=>r[1]);
+  const att=e.file?(e.file.type.startsWith("image/")?`<a class="att" href="${esc(fileUrl(e.file))}" target="_blank" rel="noopener"><img src="${esc(fileUrl(e.file))}" alt="Attached DNR form"></a>`:`<a class="att btn ghost sm" href="${esc(fileUrl(e.file))}" target="_blank" rel="noopener">Open DNR form (PDF)</a>`):"";
+  return `<li style="--tone:var(--accent)"><div class="what">DNR entry</div><div class="meta">${esc(stamp(e.at))} · ${esc(nameOf(e.by))}</div>
+    <div class="dnr">${rows.length?`<dl>${rows.map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>`:""}${att}</div></li>`;
+}
+function editForm(d){
+  return `<div id="editForm" class="editbox"><h3>Edit details</h3>
+    <p class="meta">Corrections are added to the trail with your name, so the original reading is never lost.</p>
+    <label for="eSerial">Serial number</label><input type="text" id="eSerial" value="${esc(d.serial)}" autocapitalize="characters">
+    <label for="eModel">Model</label><input type="text" id="eModel" value="${esc(d.model||"")}" list="models">
+    <datalist id="models">${[...new Set(sortedDevices().map(x=>x.model).filter(Boolean))].map(m=>`<option value="${esc(m)}">`).join("")}</datalist>
+    <div class="grid2"><div><label for="eMfr">Manufacturer</label>${mfrPicker("eMfr",d.mfr||"")}</div>
+    <div><label for="ePart">Part #</label><input type="text" id="ePart" value="${esc(d.partNo||"")}" autocapitalize="characters"></div></div>
+    <label for="eMfg">Manufactured <span class="meta">(full date, month, or year only)</span></label><input type="text" id="eMfg" inputmode="numeric" value="${esc(d.mfg||"")}" placeholder="2024-10-29 or 2022">
+    <label>Came from</label><div class="seg" data-seg="esource">${SOURCES.map(s=>`<button type="button" aria-pressed="${s===d.source}">${s}</button>`).join("")}</div>
+    <label for="eNote">Rep, customer, or shipment details</label><input type="text" id="eNote" value="${esc(d.sourceNote||"")}">
+    <p class="err" id="eErr" hidden></p>
+    <div class="actions"><button class="btn ghost" data-act="canceledit">Cancel</button><button class="btn primary" data-act="saveedit">Save changes</button></div></div>`;
+}
+async function saveEdit(){
+  const id=state.openId, d=state.devices.get(id); if(!d) return;
+  const mfg=cleanMfg($("#eMfg").value);
+  if(mfg===null){ const er=$("#eErr"); er.textContent="Manufacture date should look like 2024-10-29, 2024-10, or 2024."; er.hidden=false; return; }
+  const next={serial:$("#eSerial").value.trim(), model:$("#eModel").value.trim(), mfr:mfrVal("eMfr"), partNo:$("#ePart").value.trim(), mfg, source:segVal("esource")||d.source||"", sourceNote:$("#eNote").value.trim()};
+  const err=$("#eErr");
+  if(!next.serial){ err.textContent="The serial can't be empty."; err.hidden=false; return; }
+  const other=findBySerial(next.serial); if(other && other!==id){ err.textContent=`Serial ${next.serial} already belongs to another device.`; err.hidden=false; return; }
+  const LBL={serial:"Serial",model:"Model",mfr:"Manufacturer",partNo:"Part #",mfg:"Manufactured",source:"Came from",sourceNote:"Details"};
+  const changes=Object.keys(LBL).filter(k=>(d[k]||"")!==next[k]).map(k=>({f:LBL[k],from:d[k]||"",to:next[k]}));
+  if(!changes.length){ editOpen=false; openDevice(id,true); return; }
+  const ok=await writeDevice(id,x=>{ Object.assign(x,next); x.events=x.events||[]; x.events.push({t:"edit",at:now(),by:state.me,changes}); });
+  if(ok){ editOpen=false; toast("Changes saved"); openDevice(id,true); }
+}
+const editText=e=>(e.changes||[]).map(c=>`${c.f}: ${c.from||"blank"} to ${c.to||"blank"}`).join("; ");
+function dnrForm(){
+  const parts=[...new Set(sortedDevices().flatMap(d=>(d.events||[]).filter(e=>e.t==="dnr"&&e.failedPart).map(e=>e.failedPart)))];
+  return `<div id="dnrForm">
+    <p class="meta">Quick shorthand here so failures can be counted later. Attach the full DNR form for the detail.</p>
+    <label>Sanitized on arrival?</label><div class="seg" data-seg="sanitized"><button aria-pressed="false">Yes</button><button aria-pressed="false">No</button><button aria-pressed="false">Unknown</button></div>
+    <label>Failure type</label><div class="seg" data-seg="failtype">${FAIL_TYPES.map(f=>`<button aria-pressed="false">${f}</button>`).join("")}</div>
+    <div class="grid2"><div><label for="dPart">Failed part</label><input type="text" id="dPart" list="partlist" placeholder="e.g. Scanner motor"><datalist id="partlist">${parts.map(p=>`<option value="${esc(p)}">`).join("")}</datalist></div>
+    <div><label for="dRep">Repair done</label><input type="text" id="dRep" placeholder="e.g. Replaced motor"></div></div>
+    <label for="dNotes">Quick note</label><input type="text" id="dNotes" placeholder="Shorthand is fine">
+    <label for="dFile">Attach DNR form</label><input type="file" id="dFile" accept="image/*,application/pdf">
+    <p class="meta" id="dFileMsg">PDF or a photo of the form.${assetsCap?"":" On this test copy files save to this phone only, so keep them small."}</p>
+    <div class="actions"><button class="btn ghost" data-act="canceldnr">Cancel</button><button class="btn primary" data-act="savednr">Save DNR entry</button></div></div>`;
+}
+
+/* ---------- Check-in sheet ---------- */
+function openCheckin(serial=""){
+  state.openId=null; bulkMode=false;
+  const dlg=$("#dlg");
+  dlg.innerHTML=`<div class="sheet"><div class="sheet-head"><h2>Check in a device</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
+  <div class="sheet-body"><form id="ciForm">
+    <div class="scanblock">
+      <p class="lead">Point the camera at the barcode or the small square code on the label. It fills in what it can on its own. Nothing leaves your phone.</p>
+      <div class="scanbar"><button type="button" class="btn primary" data-act="camstart">Scan faceplate</button></div>
+      <div class="camwrap" id="camwrap"><video id="cam" playsinline muted></video><div class="reticle"><span>Barcode or serial here</span></div></div>
+      <div class="scandebug" id="scandebug" hidden></div>
+      <div class="scanbar" id="capbar" hidden><button type="button" class="btn primary" data-act="capture">Read text instead</button><button type="button" class="btn ghost" data-act="camstop">Cancel</button></div>
+      <div class="ocrstat" id="ocrstat" aria-live="polite"></div>
+      <div class="cand" id="cand"></div>
+    </div>
+    <label for="ciSerial">Serial number</label><input type="text" id="ciSerial" required value="${esc(serial)}" autocapitalize="characters">
+    <input type="hidden" id="ciGtin" value="">
+    <label for="ciModel">Model</label><input type="text" id="ciModel" placeholder="e.g. AquaFirme XS" list="models">
+    <datalist id="models">${[...new Set([...Object.keys(MODEL_MFR),...sortedDevices().map(d=>d.model)].filter(Boolean))].map(m=>`<option value="${esc(m)}">`).join("")}</datalist>
+    <div class="grid2"><div><label for="ciMfr">Manufacturer</label>${mfrPicker("ciMfr","")}</div>
+    <div><label for="ciPart">Part # <span class="meta">(if the label has one)</span></label><input type="text" id="ciPart" autocapitalize="characters" placeholder="e.g. FS70000"></div></div>
+    <label for="ciMfg">Manufactured <span class="meta">(full date, or just the year if that's all the label shows)</span></label><div class="datebar"><input type="text" id="ciMfg" inputmode="numeric" placeholder="2024-10-29 or 2022"><button type="button" class="btn ghost" data-act="readdate">Read date</button></div>
+    <label>Came from</label><div class="seg" data-seg="source">${SOURCES.map((s,i)=>`<button type="button" aria-pressed="${i===0}">${s}</button>`).join("")}</div>
+    <label for="ciNote">Rep, customer, or shipment details</label><input type="text" id="ciNote" placeholder="Who sent it, tracking number…">
+    <label for="ciLoc">Starting location</label><select id="ciLoc">${START_LOCS.map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join("")}</select>
+    <div class="quick"><div><label for="ciType">Unit type</label><select id="ciType"><option value="">Not set</option>${UNIT_TYPES.map(u=>`<option>${u}</option>`).join("")}</select></div><div><label for="ciCond">Condition</label><select id="ciCond"><option value="">Not set</option>${CONDITIONS.map(u=>`<option>${u}</option>`).join("")}</select></div></div>
+    <p class="err" id="ciErr" hidden></p>
+    <div class="actions"><button type="button" class="btn ghost" data-act="close">Cancel</button><button type="submit" class="btn primary">Check in</button></div>
+  </form></div></div>`;
+  if(!dlg.open) dlg.showModal();
+  setTimeout(()=>$(serial?"#ciModel":"#ciSerial")?.focus(),50);
+}
+/* ---------- Bulk check-in ---------- */
+let bulkMode=false, bulkRows=[], bulkLast={v:"",at:0};
+function openBulk(){
+  state.openId=null; bulkMode=true; bulkRows=[];
+  const dlg=$("#dlg");
+  dlg.innerHTML=`<div class="sheet"><div class="sheet-head"><h2>Bulk check-in</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
+  <div class="sheet-body">
+    <p class="meta">Set these once. Every scan after that checks a device straight in, and the camera stays on for the next one.</p>
+    <label>Came from</label><div class="seg" data-seg="bsource">${SOURCES.map((s,i)=>`<button type="button" aria-pressed="${i===0}">${s}</button>`).join("")}</div>
+    <label for="bkLoc">Put them in</label><select id="bkLoc">${START_LOCS.map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join("")}</select>
+    <div class="quick"><div><label for="bkType">Unit type</label><select id="bkType"><option value="">Not set</option>${UNIT_TYPES.map(u=>`<option>${u}</option>`).join("")}</select></div><div><label for="bkCond">Condition</label><select id="bkCond"><option value="">Not set</option>${CONDITIONS.map(u=>`<option>${u}</option>`).join("")}</select></div></div>
+    <label for="bkNote">Details for this batch (optional)</label><input type="text" id="bkNote" placeholder="e.g. Inventory count, rack B">
+    <div class="scanblock" style="margin-top:12px">
+      <div class="scanbar"><button type="button" class="btn primary" data-act="camstart">Start scanning</button></div>
+      <div class="camwrap" id="camwrap"><video id="cam" playsinline muted></video><div class="reticle"><span>Label code here</span></div></div>
+      <div class="scanbar" id="capbar" hidden><button type="button" class="btn ghost" data-act="camstop">Pause camera</button></div>
+      <form id="bkForm" class="datebar" style="margin-top:8px" autocomplete="off"><input type="text" id="bkInput" placeholder="Or scan with a gun, or type a serial and press Enter" autocapitalize="characters"><button class="btn" type="submit">Add</button></form>
+      <div class="ocrstat" id="ocrstat" aria-live="polite"></div>
+      <div class="scandebug" id="scandebug" hidden></div><div class="cand" id="cand"></div>
+    </div>
+    <div class="section"><h3 id="bkCount">This session: 0 checked in</h3><ul class="bklist" id="bkList"></ul></div>
+    <div class="actions"><button class="btn primary" data-act="close">Done</button></div>
+  </div></div>`;
+  if(!dlg.open) dlg.showModal();
+}
+function renderBulk(){
+  const n=bulkRows.filter(r=>r.kind==="new").length;
+  $("#bkCount").textContent=`This session: ${n} checked in${bulkRows.length>n?`, ${bulkRows.length-n} skipped`:""}`;
+  $("#bkList").innerHTML=bulkRows.map((r,i)=>{
+    const d=r.id?state.devices.get(r.id):null;
+    if(r.kind==="dup"){ const x=state.devices.get(r.id); const out=x&&isOut(x);
+      return `<li class="dup"><b>${esc(r.serial)}</b> <span class="meta">${out?`${esc(outText(x))}, coming back`:x?.location==="checkin"&&r.back?"checked back in":"already on file"}</span> ${out?`<button class="btn sm" data-act="returnback" data-id="${esc(r.id)}">Check back in</button>`:`<button class="btn ghost sm" data-open="${esc(r.id)}">Open</button>`}</li>`; }
+    if(r.kind==="skip") return `<li class="dup"><span class="meta">${esc(r.msg)}</span></li>`;
+    const model=d?.model||"", mfg=d?.mfg||"";
+    return `<li><b>${esc(r.serial)}</b> <span class="meta">${esc(model||"model unknown")}${mfg?` · ${esc(mfg)}`:" · no date"}</span>
+      ${!model?`<span class="fixrow"><input type="text" data-bkmodel="${esc(r.id)}" placeholder="Type the model once" list="bkmodels"><button class="btn sm" data-act="bkmodel" data-id="${esc(r.id)}">Save</button></span>`:""}</li>`;
+  }).reverse().join("")+`<datalist id="bkmodels">${[...new Set(sortedDevices().map(d=>d.model).filter(Boolean))].map(m=>`<option value="${esc(m)}">`).join("")}</datalist>`;
+}
+async function bulkScan(val, fmt, engine){
+  const stat=$("#ocrstat"); val=String(val).trim(); if(!val) return false;
+  if(val===bulkLast.v && Date.now()-bulkLast.at<5000) return false;
+  bulkLast={v:val,at:Date.now()};
+  if(productOnly(val,fmt)){ const m=guessModel("",gtin14(val)); stat.textContent=`That barcode is a product code${m?` (${m})`:""} with no serial. Type its serial below, or use single check-in for that unit.`; return false; }
+  const gs=splitGtinSerial(val); if(gs && !parseGS1(val)?.serial) val="(01)"+gs.gtin+"(21)"+gs.serial;
+  const g=parseGS1(val);
+  let serial=g?.serial||"";
+  if(!serial){ const clean=val.replace(/[\u0000-\u001f]/g," ").trim(); if(/^[A-Za-z0-9\-\/]{4,}$/.test(clean)) serial=clean; }
+  if(!serial){ stat.textContent="Read a code but couldn't find a serial in it. Type the serial below."; return false; }
+  if(navigator.vibrate) try{ navigator.vibrate(60); }catch{}
+  const existing=findBySerial(serial);
+  if(existing){ const x=state.devices.get(existing); bulkRows.push({kind:"dup",serial,id:existing}); stat.textContent=x&&isOut(x)?`${serial} ${outText(x)}. Tap Check back in on it below.`:`${serial} is already on file. Skipped.`; renderBulk(); return false; }
+  if(!state.canWrite){ stat.textContent="You don't have permission to check in devices."; return false; }
+  const id=uid(), at=now(), loc=$("#bkLoc").value, model=guessModel(serial,g?.gtin);
+  const doc={serial, model, mfr:mfrFor(model), partNo:"", mfg:g?.mfg||yearFromSerial(serial), gtin:g?.gtin||"", source:segVal("bsource"), sourceNote:$("#bkNote").value.trim(),
+    location:loc, unitType:$("#bkType").value, condition:$("#bkCond").value, holder:"", createdAt:at, updatedAt:at, createdBy:state.me, events:[{t:"move",from:null,to:loc,at,by:state.me,note:"Bulk check-in"}]};
+  try{ await store.save(id,doc); }catch(ex){ stat.textContent=ex?.code==="quota_exceeded"?"Storage is full. Export the log first.":"Couldn't save that one. Scan it again."; bulkLast.v=""; return false; }
+  state.devices.set(id,doc); bulkRows.push({kind:"new",serial,id});
+  stat.textContent=`Checked in ${serial}${model?` (${model})`:""}. Ready for the next one.`; toast(`Checked in ${serial}`);
+  renderBulk(); return false;
+}
+async function bulkModel(id){
+  const inp=document.querySelector(`[data-bkmodel="${CSS.escape(id)}"]`); const model=inp?.value.trim(); if(!model) return;
+  const d=state.devices.get(id); const g=d?.gtin?gtin14(d.gtin):"";
+  // Teach every device from this session with the same product code and no model yet
+  const targets=bulkRows.filter(r=>r.kind==="new").map(r=>r.id).filter(x=>{ const y=state.devices.get(x); return y&&!y.model&&(x===id||(g&&y.gtin&&gtin14(y.gtin)===g)); });
+  for(const t of targets){ await writeDevice(t,x=>{ x.events=x.events||[]; x.events.push({t:"edit",at:now(),by:state.me,changes:[{f:"Model",from:"",to:model}]}); x.model=model; }); const y=state.devices.get(t); if(y) y.model=model; }
+  toast(targets.length>1?`Set ${model} on ${targets.length} devices`:`Model set to ${model}`); renderBulk();
+}
+function segVal(name){ const b=document.querySelector(`[data-seg="${name}"] [aria-pressed="true"]`); return b?b.textContent:""; }
+
+async function submitCheckin(e){
+  e.preventDefault();
+  let serial=$("#ciSerial").value.trim(); const err=$("#ciErr");
+  { const gs=splitGtinSerial(serial); if(gs && /^\d{12,14}[-_.]/.test(serial.replace(/\s+/g,""))){ serial=gs.serial; $("#ciSerial").value=serial; if(!$("#ciGtin").value) $("#ciGtin").value=gs.gtin; const m=guessModel(serial,gs.gtin); if(m&&!$("#ciModel").value.trim()) $("#ciModel").value=m; } }
+  if(!serial){ err.textContent="Enter the serial number."; err.hidden=false; return; }
+  const existing=findBySerial(serial);
+  if(existing){ const x=state.devices.get(existing);
+    if(x && isOut(x)){ err.innerHTML=`This unit ${esc(outText(x))} as of ${esc(stamp(lastMoveInto(x)))}. It's coming back, not new. <button type="button" class="btn" data-act="returnback" data-id="${esc(existing)}">Check it back in</button>`; err.hidden=false; return; }
+    err.innerHTML=`Serial ${esc(serial)} is already on file. <button type="button" class="btn" data-open="${esc(existing)}">Open it</button>`; err.hidden=false; return; }
+  if(!state.canWrite){ toast("You don't have permission to check in devices."); return; }
+  syncYear(); syncMfr();
+  const mfg=cleanMfg($("#ciMfg").value); if(mfg===null){ err.textContent="Manufacture date should look like 2024-10-29, 2024-10, or 2024."; err.hidden=false; return; }
+  if(!mfg && !e.target.dataset.nodate){ e.target.dataset.nodate="1"; err.textContent="No manufacture date yet. Tap Read date or type it from the label, or tap Check in again to save without it."; err.hidden=false; return; }
+  const id=uid(), at=now(), loc=$("#ciLoc").value;
+  const doc={serial, model:$("#ciModel").value.trim(), mfr:mfrVal("ciMfr"), partNo:$("#ciPart").value.trim(), mfg, gtin:$("#ciGtin").value||"", source:segVal("source"), sourceNote:$("#ciNote").value.trim(),
+    location:loc, unitType:$("#ciType").value, condition:$("#ciCond").value, holder:"", createdAt:at, updatedAt:at, createdBy:state.me,
+    events:[{t:"move",from:null,to:loc,at,by:state.me,note:""}]};
+  try{ await store.save(id,doc); }catch(ex){ toast(ex?.code==="quota_exceeded"?"Storage is full. Export the log first.":"Couldn't check in. Try again."); return; }
+  state.devices.set(id,doc); toast(`Checked in ${serial}`); openDevice(id);
+}
+
+async function doMove(dest, note="", holder="", forId=null){
+  const id=forId||state.openId; const d=state.devices.get(id); if(!d||!dest) return false;
+  if(CLEAN_ONLY.includes(dest) && notCleared(d)){ toast("Not cleared as sanitized. Move it to contamination or add a DNR first."); return false; }
+  if(HOLDER[dest] && !holder){ toast(HOLDER[dest]==="rep"?"Enter which rep has it.":"Enter the customer or company."); $("#mvWho")?.focus(); return false; }
+  const from=d.location;
+  const ok=await writeDevice(id, x=>{ x.events=x.events||[];
+    const ev={t:"move",from:x.location,to:dest,at:now(),by:state.me,note};
+    if(holder) ev.holder=holder;
+    if(isOut(x) && !isOut({location:dest})){ ev.returned=x.unitType||"unit"; if(x.holder) ev.fromHolder=x.holder; }
+    x.events.push(ev); x.location=dest; x.holder=HOLDER[dest]?holder:""; });
+  if(ok){ pickDest=null; toast(`Transferred to ${LOC[dest].name}${holder?`: ${holder}`:""}`); if(from!==dest && state.openId===id) openDevice(id,true); }
+  return ok;
+}
+async function setField(field, value){
+  const id=state.openId, d=state.devices.get(id); if(!d || (d[field]||"")===value) return;
+  const ok=await writeDevice(id,x=>{ const from=x[field]||""; x[field]=value; x.events=x.events||[]; x.events.push({t:"field",field,from,to:value,at:now(),by:state.me}); });
+  if(ok){ toast(`${FIELD_LBL[field]} set to ${value||"not set"}`); openDevice(id,true); }
+}
+const FIELD_LBL={unitType:"Unit type",condition:"Condition"};
+const fieldText=e=>`${FIELD_LBL[e.field]||e.field}: ${e.from||"not set"} to ${e.to||"not set"}`;
+function knownHolders(kind){
+  const set=new Set();
+  state.devices.forEach(d=>{ if(HOLDER[d.location]===kind && d.holder) set.add(d.holder);
+    (d.events||[]).forEach(e=>{ if(e.t==="move" && e.holder && HOLDER[e.to]===kind) set.add(e.holder); }); });
+  return [...set].sort((a,b)=>a.localeCompare(b));
+}
+async function returnBack(id){
+  const d=state.devices.get(id); if(!d) return;
+  const ok=await doMove("checkin", `${d.unitType||"Unit"} returned${d.holder?` from ${d.holder}`:""}`, "", id);
+  if(!ok) return;
+  if(bulkMode){ const r=bulkRows.find(r=>r.id===id); if(r) r.back=true; renderBulk(); }
+  else if(state.openId!==id) openDevice(id);
+}
+function shrinkImage(file){
+  return new Promise((res,rej)=>{ const img=new Image(); const u=URL.createObjectURL(file);
+    img.onload=()=>{ const k=Math.min(1,1600/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(u); c.toBlob(b=>b?res(b):rej(new Error("shrink")),"image/jpeg",0.8); };
+    img.onerror=()=>{ URL.revokeObjectURL(u); rej(new Error("img")); }; img.src=u; });
+}
+const asDataUrl=blob=>new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
+async function storeFile(file){
+  const isImg=/^image\//.test(file.type), isPdf=file.type==="application/pdf";
+  if(!isImg && !isPdf) throw {msg:"Attach a PDF or a photo. Save Word files as PDF first."};
+  const blob=isImg && file.type!=="image/svg+xml" ? await shrinkImage(file) : file;
+  const name=file.name||"DNR form", type=isImg?"image/jpeg":"application/pdf";
+  if(assetsCap){
+    try{ const r=await assetsCap.upload(blob,{type}); return {id:r.id,name,type}; }
+    catch(e){ throw {msg: e?.code==="quota_exceeded"?"Attachment storage is full.": e?.code==="too_large"?"That file is too big. Use a smaller PDF or a photo.":"Couldn't upload the file. Try again."}; }
+  }
+  if(blob.size>1500000) throw {msg:"Too big for the test copy (1.5 MB max). Use a photo instead, or the shared version."};
+  return {data:await asDataUrl(blob),name,type};
+}
+const fileUrl=f=>f.id?"/_blob/"+f.id:f.data;
+async function saveDnr(){
+  const id=state.openId;
+  const entry={t:"dnr",at:now(),by:state.me,sanitized:segVal("sanitized"),failType:segVal("failtype"),failedPart:$("#dPart").value.trim(),
+    repair:$("#dRep").value.trim(),notes:$("#dNotes").value.trim()};
+  const f=$("#dFile")?.files?.[0];
+  if(!f && !Object.entries(entry).some(([k,v])=>!["t","at","by"].includes(k)&&v)){ toast("Fill in at least one field or attach the form."); return; }
+  if(f){ $("#dFileMsg").textContent="Attaching the form…";
+    try{ entry.file=await storeFile(f); }catch(e){ $("#dFileMsg").textContent=e?.msg||"Couldn't attach that file."; return; } }
+  const ok=await writeDevice(id,x=>{ x.events=x.events||[]; x.events.push(entry); });
+  if(ok){ dnrOpen=false; toast("DNR entry saved"); openDevice(id,true); }
+}
+async function exportCsv(){
+  const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const lines=[["Serial","Model","Manufacturer","Part #","Manufactured","Unit type now","Condition now","Location now","Holder now","Source","Event","From","To","Customer or rep","When","By","Details","Failure type","Failed part","Form attached"].join(",")];
+  state.devices.forEach(d=>(d.events||[]).forEach(e=>{
+    const details = e.t==="move" ? [e.as&&"As: "+e.as, e.returned&&"Returned "+e.returned.toLowerCase()+(e.fromHolder?" from "+e.fromHolder:""), e.note].filter(Boolean).join(" | ") : e.t==="field" ? fieldText(e) : e.t==="edit" ? editText(e) : SHELF_TXT[e.t] ? (e.note||"") : [e.sanitized&&"Sanitized: "+e.sanitized,e.failType&&"Failure: "+e.failType,e.failedPart&&"Part: "+e.failedPart,e.condition,e.issue,e.diagnosis,e.repair,e.parts,e.notes].filter(Boolean).join(" | ");
+    lines.push([d.serial,d.model,d.mfr||"",d.partNo||"",d.mfg||"",d.unitType||"",d.condition||"",LOC[d.location]?.name,d.holder||"",d.source,e.t==="move"?"Transfer":e.t==="field"?"Field change":e.t==="edit"?"Correction":SHELF_TXT[e.t]||"DNR",e.t==="move"?(LOC[e.from]?.name||"Check-in"):"",e.t==="move"?LOC[e.to]?.name:LOC[d.location]?.name,e.holder||"",e.at,nameOf(e.by),details,e.failType||"",e.failedPart||"",e.file?"Yes":""].map(q).join(","));
+  }));
+  try{ await downloadsCap.save({filename:`device-trail-${new Date().toISOString().slice(0,10)}.csv`, data:lines.join("\n")}); toast("Export saved"); }
+  catch(e){ if(e?.code!=="declined") toast("Export isn't available here."); }
+}
+
+/* ---------- Plate scanner ---------- */
+async function startBarcodeLoop(){
+  // Native reader only if this phone actually supports the label formats; otherwise it silently sees nothing
+  bcDetector=null;
+  if("BarcodeDetector" in window){
+    try{
+      const sup=await BarcodeDetector.getSupportedFormats();
+      const want=["code_128","code_39","code_93","data_matrix","qr_code","ean_13","upc_a","itf","codabar","pdf417"].filter(f=>sup.includes(f));
+      if(want.includes("code_128")||want.includes("data_matrix")) bcDetector=new BarcodeDetector({formats:want});
+    }catch{ bcDetector=null; }
+  }
+  // Backup reader always loads too, and works on a sharpened crop of the box
+  let ZX=null, reader=null;
+  loadZxing().then(z=>{ ZX=z; reader=new ZX.MultiFormatReader(); const h=new Map(); h.set(ZX.DecodeHintType.TRY_HARDER,true); reader.setHints(h); }).catch(()=>{});
+  const c=document.createElement("canvas"), ctx=c.getContext("2d",{willReadFrequently:true});
+  let n=0;
+  const tick=async()=>{
+    if(!camStream) return;
+    const v=$("#cam");
+    if(v?.videoWidth){
+      n++;
+      if(n===1||n%10===0) $("#ocrstat").textContent=`Looking for a barcode. Camera ${v.videoWidth}x${v.videoHeight}, reader: ${bcDetector?"built-in + backup":"backup"}${reader?"":" (loading)"}. Hold the label inside the box, 4 to 6 inches away.`;
+      let val=null, fmt="", eng="";
+      try{
+        if(bcDetector){ const r=await bcDetector.detect(v); if(r&&r.length){ const pick=r.find(x=>parseGS1(x.rawValue)?.serial)||r[0]; val=pick.rawValue; fmt=pick.format||""; eng="built-in reader"; } }
+      }catch{}
+      if(!val && reader && (!bcDetector || n%2===0)){
+        try{
+          // crop to the box (a bit wider than drawn), upscale so thin bars survive
+          const vw=v.videoWidth, vh=v.videoHeight, sx=vw*0.03, sw=vw*0.94, sy=vh*0.30, sh=vh*0.40;
+          const k=Math.min(2.5, 1600/sw); c.width=Math.round(sw*k); c.height=Math.round(sh*k);
+          ctx.imageSmoothingEnabled=false; ctx.drawImage(v,sx,sy,sw,sh,0,0,c.width,c.height);
+          const src=new ZX.HTMLCanvasElementLuminanceSource(c);
+          const res=reader.decode(new ZX.BinaryBitmap(new ZX.HybridBinarizer(src)));
+          val=res.getText(); try{ fmt=ZX.BarcodeFormat[res.getBarcodeFormat()]||""; }catch{} eng="backup reader";
+        }catch{ val=null; }
+      }
+      if(val && val.trim()){ if(onBarcode(val.trim(), fmt, eng)!==false) return; }
+    }
+    bcTimer=setTimeout(tick,200);
+  };
+  tick();
+}
+// GS1 / UDI parsing: medical device labels pack GTIN (01), manufacture date (11) and serial (21)
+const GS1_FIXED={"00":18,"01":14,"02":14,"11":6,"12":6,"13":6,"15":6,"16":6,"17":6,"20":2};
+const GS1_VAR=["10","21","22","30","37","240","241","250","251","90","91","92","93","94","95","96","97","98","99"];
+function parseGS1(raw){
+  if(!raw) return null;
+  let s=String(raw).replace(/^[\s\u0000-\u001f]+|[\s\u0000-\u001f]+$/g,"").replace(/^\][A-Za-z]\d/,"").replace(/^[\u0000-\u001f]+/,"");
+  // Human readable form: (01)0880...(11)250307(21)B5NVD302-137
+  if(/^\(\d{2,4}\)/.test(s)){
+    const out={}; const re=/\((\d{2,4})\)\s*([^(]+)/g; let m;
+    while((m=re.exec(s))) out[m[1]]=m[2].replace(/\s+/g,"").trim();
+    return gs1Result(out);
+  }
+  if(!/^(01|02|00|11|17|21|10)\d/.test(s)) return null;
+  const out={}; let i=0, guard=0;
+  while(i<s.length && guard++<20){
+    if(s[i]==="\u001d"){ i++; continue; }
+    let ai=null;
+    for(const k of Object.keys(GS1_FIXED)) if(s.startsWith(k,i)){ ai=k; break; }
+    if(ai){ const n=GS1_FIXED[ai]; out[ai]=s.substr(i+2,n); i+=2+n; continue; }
+    for(const k of GS1_VAR.slice().sort((a,b)=>b.length-a.length)) if(s.startsWith(k,i)){ ai=k; break; }
+    if(!ai) break;
+    let j=s.indexOf("\u001d",i+ai.length); if(j<0) j=s.length;
+    out[ai]=s.slice(i+ai.length,j); i=j;
+  }
+  if(!out["01"] && !out["21"]) return null;
+  return gs1Result(out);
+}
+function peelDate(o){
+  if(o["21"] && !o["11"]){
+    const m=o["21"].match(/^(.{3,}?)(11)(\d{2})(\d{2})(\d{2})$/);
+    if(m && +m[4]>=1 && +m[4]<=12 && +m[5]>=1 && +m[5]<=31){ o["21"]=m[1]; o["11"]=m[3]+m[4]+m[5]; }
+  }
+  return o;
+}
+function gs1Result(o){ o=peelDate(o);
+  const d=o["11"]; let mfg="";
+  if(d && /^\d{6}$/.test(d)){ mfg=`20${d.slice(0,2)}-${d.slice(2,4)}-${d.slice(4,6)}`; }
+  return {gtin:o["01"]||"", serial:o["21"]||"", mfg, lot:o["10"]||""};
+}
+// Known product codes from AMP labels; anything checked in later teaches the app more
+const GTIN_MODELS={"08800022301121":"NouvaDerm","07290016681062":"Alpha","07290016681024":"Magma","00860008655806":"Plasmage","08800017101422":"PLADUO PRO","08809502330422":"Scarlet Pro","08809502330088":"Scarlet SRF"};
+const gtin14=x=>String(x||"").replace(/\D/g,"").padStart(14,"0");
+// Product-only barcodes (UPC/EAN): same on every unit of a model, so they name the model but never the serial
+function productOnly(val, fmt){ const d=String(val).trim(); return /^\d{8,14}$/.test(d) && (/ean|upc/i.test(fmt||"") || GTIN_MODELS[gtin14(d)]); }
+// Printed "GTIN-serial" line, e.g. 00860008655806-000159
+function splitGtinSerial(t){ for(const line of String(t).split(/[\r\n]+/)){ const m=line.replace(/[ \t]+/g,"").match(/(\d{12,14})[-_.]([A-Za-z0-9]{3,})/); if(m) return {gtin:gtin14(m[1]),serial:m[2]}; } return null; }
+const SHAPE_MODELS=[[/^EQ\d{8}EX\d{2}$/i,"AquaFirme XS"]];
+// Which company makes each model. Starter list; "Other" covers anything new.
+const MODEL_MFR={"Alpha":"Forma TK","Alpha Pro":"Forma TK","Magma":"Forma TK","NouvaDerm":"Wontech","AquaFirme XS":"Anchor Free","PLADUO PRO":"ShenB","Plasmage":"Brera Medical","Scarlet Pro":"Viol","Scarlet SRF":"Viol","Ativa":"Italian Industries"};
+const MFRS=[...new Set(Object.values(MODEL_MFR))].sort();
+function mfrFor(model){ if(!model) return ""; const k=Object.keys(MODEL_MFR).find(m=>m.toLowerCase()===model.trim().toLowerCase()); if(k) return MODEL_MFR[k];
+  const seen=sortedDevices().find(d=>d.mfr && (d.model||"").toLowerCase()===model.trim().toLowerCase()); return seen?seen.mfr:""; }
+// Year from the serial when the label has no date, e.g. AquaFirme ...EX22 means 2022
+function yearFromSerial(serial){ const m=String(serial||"").match(/^EQ\d{8}EX(\d{2})$/i); return m?"20"+m[1]:""; }
+// Accept a full date, year and month, or year only. Returns "" for blank, null for unreadable.
+function cleanMfg(v){
+  v=String(v||"").trim().replace(/[./]/g,"-"); if(!v) return "";
+  let m=v.match(/^(\d{4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?$/); if(!m) return null;
+  const y=+m[1]; if(y<1990||y>2099) return null;
+  if(!m[2]) return m[1];
+  const mo=+m[2]; if(mo<1||mo>12) return null;
+  if(!m[3]) return `${m[1]}-${String(mo).padStart(2,"0")}`;
+  const d=+m[3]; if(d<1||d>31) return null;
+  return `${m[1]}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+}
+const mfgLabel=v=>!v?"":/^\d{4}$/.test(v)?`${v} (year only)`:/^\d{4}-\d{2}$/.test(v)?`${v} (month only)`:v;
+function mfrPicker(id,val){
+  const known=MFRS.includes(val);
+  return `<select id="${id}" data-mfrsel><option value="">Not set</option>${MFRS.map(m=>`<option${m===val?" selected":""}>${esc(m)}</option>`).join("")}<option value="__other"${val&&!known?" selected":""}>Other</option></select>
+    <input type="text" id="${id}Other" placeholder="Manufacturer name" value="${val&&!known?esc(val):""}"${val&&!known?"":" hidden"}>`;
+}
+const mfrVal=id=>{ const s=$("#"+id); if(!s) return ""; return s.value==="__other"?($("#"+id+"Other").value.trim()):s.value; };
+function syncMfr(){ const s=$("#ciMfr"); if(!s||s.value) return; const m=mfrFor($("#ciModel")?.value); if(!m) return;
+  if(MFRS.includes(m)) s.value=m; else { s.value="__other"; $("#ciMfrOther").value=m; $("#ciMfrOther").hidden=false; } }
+function syncYear(){ const f=$("#ciMfg"); if(f && !f.value){ const y=yearFromSerial($("#ciSerial")?.value); if(y){ f.value=y; const st=$("#ocrstat"); if(st) st.textContent=`Manufacture year ${y} read from the serial. The label has no full date.`; } } }
+function serialShape(s){ return String(s).toUpperCase().replace(/[0-9]/g,"9").replace(/[A-Z]/g,"A"); }
+function guessModel(serial, gtin){
+  const devs=sortedDevices();
+  if(gtin){ gtin=gtin14(gtin); const hit=devs.find(d=>d.gtin&&gtin14(d.gtin)===gtin && d.model); if(hit) return hit.model; if(GTIN_MODELS[gtin]) return GTIN_MODELS[gtin]; }
+  for(const [re,m] of SHAPE_MODELS) if(re.test(serial)) return m;
+  const shp=serialShape(serial); const hit=devs.find(d=>d.model && d.serial && serialShape(d.serial)===shp && d.serial.length>=6);
+  return hit?hit.model:"";
+}
+let lastProduct="";
+function onBarcode(val, fmt, engine){
+  if(bulkMode){ bulkScan(val,fmt,engine); return false; }
+  if(productOnly(val, fmt)){
+    const g=gtin14(val); const model=guessModel("", g);
+    if(lastProduct!==g){
+      lastProduct=g; if(navigator.vibrate) try{ navigator.vibrate(30); }catch{}
+      $("#ciGtin").value=g; if(model && !$("#ciModel").value.trim()) $("#ciModel").value=model;
+      $("#ocrstat").textContent=`Got the product code${model?` (${model})`:""}, but this barcode doesn't hold the serial. Aim at the printed number line and tap Read text instead.`;
+      $("#scandebug").hidden=false;
+      $("#scandebug").innerHTML=`<div><b>Raw barcode:</b> <code>${esc(val)}</code></div><div><b>Type:</b> ${esc(String(fmt||"unknown").replace(/_/g," ").toUpperCase())} · <b>Reader:</b> ${esc(engine)} · product code only</div>`;
+    }
+    return false;
+  }
+  const gs=splitGtinSerial(val); if(gs && !parseGS1(val)?.serial) val="(01)"+gs.gtin+"(21)"+gs.serial;
+  if(navigator.vibrate) try{ navigator.vibrate(60); }catch{}
+  camStop();
+  const g=parseGS1(val);
+  let serial, filled=[];
+  $("#cand").innerHTML="";
+  if(g && g.serial){
+    serial=g.serial; filled.push("serial");
+    $("#ciGtin").value=g.gtin||"";
+    if(g.mfg){ $("#ciMfg").value=g.mfg; filled.push("manufacture date"); }
+  } else {
+    const clean=val.replace(/[\u0000-\u001f]/g," ").trim();
+    const parts=[...new Set(clean.split(/[\s|;,]+/).map(s=>s.trim()).filter(s=>s.length>=4))];
+    serial = parts.length>1 ? parts.slice().sort((a,b)=>b.length-a.length)[0] : clean;
+    filled.push("serial");
+    if(parts.length>1) $("#cand").innerHTML=parts.map(p=>`<button type="button" data-fill="${esc(p)}">${esc(p)}</button>`).join("");
+  }
+  $("#ciSerial").value=serial;
+  const model=guessModel(serial, g?.gtin);
+  if(model && !$("#ciModel").value.trim()){ $("#ciModel").value=model; filled.push("model"); }
+  syncMfr(); if(!$("#ciMfg").value && yearFromSerial(serial)){ $("#ciMfg").value=yearFromSerial(serial); filled.push("manufacture year"); }
+  const existing=findBySerial(serial);
+  const list=filled.length>1?filled.slice(0,-1).join(", ")+" and "+filled.slice(-1):filled[0];
+  $("#ocrstat").textContent = existing ? "That serial is already on file. Check in will offer to open it." : `Filled in ${list}. Give it a quick look and check in.`;
+  const raw=val.replace(/[\u0000-\u001f]/g,"·");
+  $("#scandebug").hidden=false;
+  $("#scandebug").innerHTML=`<div><b>Raw barcode:</b> <code>${esc(raw)}</code></div><div><b>Type:</b> ${esc(String(fmt||"unknown").replace(/_/g," ").toUpperCase())} · <b>Length:</b> ${val.length} · <b>Reader:</b> ${esc(engine)}</div>${g?`<div><b>Medical ID label:</b> product ${esc(g.gtin||"none")} · made ${esc(g.mfg||"not on code")} · serial ${esc(g.serial||"not on code")}</div>`:""}<button type="button" class="btn ghost" data-copyraw="${esc(val)}">Copy raw</button>`;
+}
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-copyraw]"); if(!b) return;
+  const t=b.getAttribute("data-copyraw"); (navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>{b.textContent="Copied";},()=>{b.textContent="Copy failed, long press the text";}); });
+async function camStart(){
+  const stat=$("#ocrstat"); $("#cand").innerHTML="";
+  if(!navigator.mediaDevices?.getUserMedia){ stat.textContent="This browser can't open the camera. Type the serial instead."; return; }
+  try{
+    try{ camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}}); }
+    catch{ camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}}); }
+    try{ const tr=camStream.getVideoTracks()[0]; const cap=tr.getCapabilities?.()||{}; if(cap.focusMode?.includes("continuous")) await tr.applyConstraints({advanced:[{focusMode:"continuous"}]}); }catch{}
+    const v=$("#cam"); v.srcObject=camStream; await v.play();
+    $("#camwrap").classList.add("on"); $("#capbar").hidden=false;
+    document.querySelector('[data-act="camstart"]').hidden=true;
+    stat.textContent="Looking for a barcode… If the sticker has none, line up the serial text and tap Read text instead.";
+    startBarcodeLoop();
+    loadTesseract().catch(()=>{});
+  }catch(e){ stat.textContent = e?.name==="NotAllowedError" ? "Camera access was blocked. Allow it, or type the serial." : "Couldn't open the camera. Type the serial instead."; }
+}
+function camStop(){ stopCam(); $("#camwrap").classList.remove("on"); $("#capbar").hidden=true; const b=document.querySelector('[data-act="camstart"]'); if(b) b.hidden=false; }
+function cropPlate(video){
+  const vw=video.videoWidth, vh=video.videoHeight;
+  const x=vw*0.08, w=vw*0.84, y=vh*0.38, h=vh*0.24;
+  const scale=Math.max(1.5, Math.min(3, 2000/w));
+  const c=document.createElement("canvas"); c.width=w*scale; c.height=h*scale;
+  const ctx=c.getContext("2d"); ctx.imageSmoothingQuality="high"; ctx.drawImage(video,x,y,w,h,0,0,c.width,c.height);
+  // grayscale + contrast stretch to help engraved plates
+  const img=ctx.getImageData(0,0,c.width,c.height), d=img.data; let mn=255,mx=0;
+  for(let i=0;i<d.length;i+=4){ const g=0.3*d[i]+0.59*d[i+1]+0.11*d[i+2]; d[i]=d[i+1]=d[i+2]=g; if(g<mn)mn=g; if(g>mx)mx=g; }
+  const rng=Math.max(1,mx-mn);
+  for(let i=0;i<d.length;i+=4){ const g=(d[i]-mn)/rng*255; d[i]=d[i+1]=d[i+2]=g; }
+  ctx.putImageData(img,0,0); return c;
+}
+function rankCandidates(text){
+  const lines=text.split(/\r?\n/).map(s=>s.replace(/[^A-Za-z0-9\-\/]/g," ").trim()).filter(Boolean);
+  const toks=[]; lines.forEach(l=>l.split(/\s+/).forEach(t=>{ if(t.length>=4) toks.push(t); }));
+  const score=t=>{ let s=0; if(/\d/.test(t)&&/[A-Za-z]/.test(t))s+=3; if(/\d/.test(t))s+=1; if(t.length>=6)s+=2; if(t.length>=9)s+=1; if(/^[A-Z0-9\-\/]+$/.test(t))s+=1; if(/^(SN|S\/N|SER|SERIAL|MODEL|MDL|REF|MFG|DATE)$/i.test(t))s-=5; return s; };
+  return [...new Set(toks)].map(t=>({t,s:score(t)})).sort((a,b)=>b.s-a.s).slice(0,6).filter(x=>x.s>0).map(x=>x.t);
+}
+function findDate(text){
+  const t=String(text).replace(/[Oo]/g,"0");
+  const ok=(y,m,d)=>+m>=1&&+m<=12&&+d>=1&&+d<=31&&+y>=1990&&+y<=2099;
+  let m=t.match(/(19|20)(\d{2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})/);
+  if(m && ok(m[1]+m[2],m[3],m[4])) return `${m[1]}${m[2]}-${m[3].padStart(2,"0")}-${m[4].padStart(2,"0")}`;
+  m=t.replace(/\s+/g,"").match(/\(?11\)?(\d{2})(\d{2})(\d{2})/);
+  if(m && ok("20"+m[1],m[2],m[3])) return `20${m[1]}-${m[2]}-${m[3]}`;
+  return "";
+}
+async function readDate(){
+  const stat=$("#ocrstat"); const v=$("#cam");
+  if(!camStream || !v?.videoWidth){ dateHunt=true; await camStart(); if(camStream) stat.textContent="Line up the manufacture date inside the box, then tap Read date again."; return; }
+  stat.textContent="Reading the date…";
+  let T; try{ T=await loadTesseract(); }catch{ stat.textContent="Couldn't load the text reader. Type the date instead."; return; }
+  try{
+    const {data}=await T.recognize(cropPlate(v),"eng",{tessedit_char_whitelist:"0123456789-./()"});
+    const d=findDate(data.text||"");
+    if(d){ $("#ciMfg").value=d; dateHunt=false; camStop(); stat.textContent=`Manufacture date set to ${d}. Check it against the label.`; }
+    else stat.textContent="Couldn't find a date. Move closer to just the date line and try again, or type it.";
+  }catch{ stat.textContent="Reading failed. Try again or type the date."; }
+}
+let dateHunt=false;
+async function capture(){
+  const stat=$("#ocrstat"); const v=$("#cam"); if(!v?.videoWidth){ stat.textContent="Camera not ready yet."; return; }
+  stat.textContent="Reading the plate…";
+  let T; try{ T=await loadTesseract(); }catch{ stat.textContent="Couldn't load the text reader. Type the serial instead."; return; }
+  try{
+    const canvas=cropPlate(v);
+    const {data}=await T.recognize(canvas,"eng",{tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-/"});
+    const gs=splitGtinSerial(data.text||"");
+    if(gs){ $("#ciSerial").value=gs.serial; $("#ciGtin").value=gs.gtin; const m=guessModel(gs.serial,gs.gtin); if(m&&!$("#ciModel").value.trim()) $("#ciModel").value=m;
+      stat.textContent=`Read serial ${gs.serial}${m?` (${m})`:""} from the printed line. Check it against the label and check in.`; $("#cand").innerHTML=""; camStop(); return; }
+    const cands=rankCandidates(data.text||"");
+    if(!cands.length){ stat.textContent="Couldn't make out the serial. Try again with more light, or type it."; return; }
+    $("#ciSerial").value=cands[0]; stat.textContent="Best guess filled in. Check it, or tap another reading:";
+    $("#cand").innerHTML=cands.map(c=>`<button type="button" data-fill="${esc(c)}">${esc(c)}</button>`).join("");
+    camStop();
+  }catch(e){ stat.textContent="Reading failed. Try again or type the serial."; }
+}
+
+/* ---------- Events ---------- */
+document.addEventListener("click", e=>{
+  const t=e.target.closest("button"); if(!t) return;
+  if(t.dataset.area){ state.area=t.dataset.area; try{ localStorage.setItem(AKEY,state.area); }catch{} render(); return; }
+  if(t.dataset.tab){ state.tab=t.dataset.tab; state.holder=null; render(); return; }
+  if(t.dataset.open){ openDevice(t.dataset.open); return; }
+  if(t.dataset.holder){ state.holder={name:t.dataset.holder, kind:t.dataset.kind}; state.tab="devices"; if($("#dlg").open) $("#dlg").close(); render(); return; }
+  if(t.dataset.tagfilter){ state.filter=t.dataset.tagfilter; $("#scan").value=state.filter; state.tab="devices"; render(); return; }
+  if(t.dataset.fill){ $("#ciSerial").value=t.dataset.fill; $("#ocrstat").textContent="Serial set. Add the model and check in."; return; }
+  if(t.dataset.dest){ pickDest=t.dataset.dest; openDevice(state.openId,true); setTimeout(()=>$("#mvNote")?.focus(),30); return; }
+  const seg=t.closest("[data-seg]"); if(seg){ seg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b===t))); return; }
+  switch(t.dataset.act){
+    case "close": $("#dlg").close(); break;
+    case "checkin": openCheckin(); break;
+    case "export": exportCsv(); break;
+    case "cancelmove": pickDest=null; openDevice(state.openId,true); break;
+    case "move": doMove(pickDest, $("#mvNote")?.value.trim()||"", $("#mvWho")?.value.trim()||""); break;
+    case "returnback": returnBack(t.dataset.id); break;
+    case "tocontam": doMove("contam","Not sanitized per DNR"); break;
+    case "dnr": dnrOpen=true; pickDest=null; openDevice(state.openId,true); break;
+    case "canceldnr": dnrOpen=false; openDevice(state.openId,true); break;
+    case "savednr": saveDnr(); break;
+    case "clearholder": state.holder=null; state.tab="holders"; render(); break;
+    case "archive": shelfOpen="archive"; pickDest=null; dnrOpen=false; openDevice(state.openId,true); setTimeout(()=>$("#shNote")?.focus(),30); break;
+    case "void": shelfOpen="void"; pickDest=null; dnrOpen=false; openDevice(state.openId,true); setTimeout(()=>$("#shNote")?.focus(),30); break;
+    case "cancelshelf": shelfOpen=""; openDevice(state.openId,true); break;
+    case "doarchive": shelve("archive"); break;
+    case "dovoid": shelve("void"); break;
+    case "unarchive": shelve("unarchive"); break;
+    case "unvoid": { const d=state.devices.get(state.openId); const other=d&&findBySerial(d.serial); if(other&&other!==state.openId){ toast(`Serial ${d.serial} is now used by another unit. Fix that one first.`); break; } shelve("unvoid"); break; }
+    case "chooseArea": state.area=""; render(); break;
+    case "toggleshelved": state.showShelved=!state.showShelved; render(); break;
+    case "edit": editOpen=true; pickDest=null; dnrOpen=false; openDevice(state.openId,true); setTimeout(()=>$("#eSerial")?.focus(),30); break;
+    case "canceledit": editOpen=false; openDevice(state.openId,true); break;
+    case "saveedit": saveEdit(); break;
+    case "camstart": camStart(); break;
+    case "camstop": camStop(); break;
+    case "capture": capture(); break;
+    case "readdate": readDate(); break;
+    case "bulk": openBulk(); break;
+    case "bkmodel": bulkModel(t.dataset.id); break;
+  }
+});
+document.addEventListener("change", e=>{ if(e.target.matches?.("[data-mfrsel]")){ const o=$("#"+e.target.id+"Other"); if(o){ o.hidden=e.target.value!=="__other"; if(!o.hidden) o.focus(); } return; } const lf=e.target.dataset?.logf; if(lf){ state.log[lf]=e.target.value; render(); return; } const f=e.target.dataset?.field; if(f && state.openId) setField(f, e.target.value); });
+document.addEventListener("input", e=>{ if(e.target.id==="ciModel") syncMfr(); });
+document.addEventListener("focusout", e=>{ if(e.target.id==="ciSerial") syncYear(); });
+document.addEventListener("submit", e=>{ if(e.target.id==="ciForm") submitCheckin(e);
+  if(e.target.id==="bkForm"){ e.preventDefault(); const i=$("#bkInput"); const v=i.value; i.value=""; bulkLast.v=""; bulkScan(v,"typed","scanner gun or keyboard"); i.focus(); } });
+$("#dlg").addEventListener("close", ()=>{ state.openId=null; stopCam(); bulkMode=false; dateHunt=false; });
+$("#dlg").addEventListener("click", e=>{ if(e.target===$("#dlg")) $("#dlg").close(); });
+$("#scanForm").addEventListener("submit", e=>{
+  e.preventDefault(); const v=$("#scan").value.trim(); if(!v) return;
+  const id=findBySerial(v);
+  if(id){ openDevice(id); $("#scan").value=""; state.filter=""; }
+  else if(state.canWrite) openCheckin(v);
+  else toast("No device with that serial.");
+});
+$("#scan").addEventListener("input", e=>{ state.filter=e.target.value; state.holder=null; if(state.filter){ state.tab="devices"; } render(); });
+boot();
+</script>
+</body>
+</html>
