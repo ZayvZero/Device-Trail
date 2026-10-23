@@ -423,7 +423,7 @@ function devicesView(){
   const shelvedN=sortedDevices().filter(d=>!active(d)).length;
   const all=sortedDevices().filter(d=>(active(d)||state.showShelved||(f&&!d.voided)) && (!f || [d.serial,d.model,d.mfr,d.partNo,d.source,d.sourceNote,LOC[d.location]?.name,d.unitType,d.condition,d.holder].join(" ").toLowerCase().includes(f)));
   return `<div class="toolbar"><h2>${f?`Matches for “${esc(state.filter)}”`:state.showShelved?"All devices, including archived and voided":"Active devices"} (${all.length})</h2>
-    <div style="display:flex;gap:8px">${downloadsCap?`<button class="btn ghost" data-act="export">Export CSV</button>`:""}${state.canWrite?`<button class="btn ghost" data-act="bulk">Bulk check-in</button><button class="btn primary" data-act="checkin">Check in</button>`:""}</div></div>
+    <div style="display:flex;gap:8px"><button class="btn ghost" data-act="export">Export CSV</button>${state.canWrite?`<button class="btn ghost" data-act="bulk">Bulk check-in</button><button class="btn primary" data-act="checkin">Check in</button>`:""}</div></div>
     <div class="list">${all.length? all.map(d=>`<button class="row" data-open="${esc(d.id)}">
       <span class="serial">${esc(d.serial)}</span><span class="chip" style="${tone(d.location)}">${esc(LOC[d.location]?.name)}</span>
       <span class="meta">${esc(d.model||"Unknown model")} · from ${esc(d.source||"unknown")} ${tagChip(d)}</span><span class="meta">${ago(d.updatedAt)==="just now"?"just now":esc(ago(d.updatedAt))+" ago"}</span></button>`).join("")
@@ -473,7 +473,7 @@ function activityView(){
   const hits=rows.filter(e=>typeOk(e) && (!since||e.at>=since) && (!L.loc||e.to===L.loc||e.from===L.loc) && (!L.who||e.by===L.who)).sort((a,b)=>b.at.localeCompare(a.at));
   const top=hits.slice(0,150);
   const opt=(list,val)=>list.map(([v,t])=>`<option value="${esc(v)}"${v===val?" selected":""}>${esc(t)}</option>`).join("");
-  return `<div class="toolbar"><h2>Transfer log</h2>${downloadsCap?`<button class="btn ghost" data-act="export">Export full log</button>`:""}</div>
+  return `<div class="toolbar"><h2>Transfer log</h2><button class="btn ghost" data-act="export">Export full log</button></div>
   <div class="logf">
     <select data-logf="type" aria-label="What">${opt(LOG_TYPES,L.type)}</select>
     <select data-logf="range" aria-label="When">${opt(LOG_RANGES,L.range)}</select>
@@ -638,9 +638,9 @@ function openCheckin(serial=""){
   setTimeout(()=>$(serial?"#ciModel":"#ciSerial")?.focus(),50);
 }
 /* ---------- Bulk check-in ---------- */
-let bulkMode=false, bulkRows=[], bulkLast={v:"",at:0};
+let bulkMode=false, bulkRows=[], bulkLast={v:"",at:0}, bulkSeen=new Set();
 function openBulk(){
-  state.openId=null; bulkMode=true; bulkRows=[];
+  state.openId=null; bulkMode=true; bulkRows=[]; bulkSeen=new Set();
   const dlg=$("#dlg");
   dlg.innerHTML=`<div class="sheet"><div class="sheet-head"><h2>Bulk check-in</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
   <div class="sheet-body">
@@ -677,8 +677,10 @@ function renderBulk(){
 }
 async function bulkScan(val, fmt, engine){
   const stat=$("#ocrstat"); val=String(val).trim(); if(!val) return false;
+  const typed = engine==="scanner gun or keyboard";
+  if(!typed && bulkSeen.has(val)) return false;
   if(val===bulkLast.v && Date.now()-bulkLast.at<5000) return false;
-  bulkLast={v:val,at:Date.now()};
+  bulkLast={v:val,at:Date.now()}; const rawVal=val; bulkSeen.add(rawVal);
   if(productOnly(val,fmt)){ const m=guessModel("",gtin14(val)); stat.textContent=`That barcode is a product code${m?` (${m})`:""} with no serial. Type its serial below, or use single check-in for that unit.`; return false; }
   const gs=splitGtinSerial(val); if(gs && !parseGS1(val)?.serial) val="(01)"+gs.gtin+"(21)"+gs.serial;
   const g=parseGS1(val);
@@ -692,7 +694,7 @@ async function bulkScan(val, fmt, engine){
   const id=uid(), at=now(), loc=$("#bkLoc").value, model=guessModel(serial,g?.gtin);
   const doc={serial, model, mfr:mfrFor(model), partNo:"", mfg:g?.mfg||yearFromSerial(serial), gtin:g?.gtin||"", source:segVal("bsource"), sourceNote:$("#bkNote").value.trim(),
     location:loc, unitType:$("#bkType").value, condition:$("#bkCond").value, holder:"", createdAt:at, updatedAt:at, createdBy:state.me, events:[{t:"move",from:null,to:loc,at,by:state.me,note:"Bulk check-in"}]};
-  try{ await store.save(id,doc); }catch(ex){ stat.textContent=ex?.code==="quota_exceeded"?"Storage is full. Export the log first.":"Couldn't save that one. Scan it again."; bulkLast.v=""; return false; }
+  try{ await store.save(id,doc); }catch(ex){ stat.textContent=ex?.code==="quota_exceeded"?"Storage is full. Export the log first.":"Couldn't save that one. Scan it again."; bulkLast.v=""; bulkSeen.delete(rawVal); return false; }
   state.devices.set(id,doc); bulkRows.push({kind:"new",serial,id});
   stat.textContent=`Checked in ${serial}${model?` (${model})`:""}. Ready for the next one.`; toast(`Checked in ${serial}`);
   renderBulk(); return false;
@@ -799,8 +801,17 @@ async function exportCsv(){
     const details = e.t==="move" ? [e.as&&"As: "+e.as, e.returned&&"Returned "+e.returned.toLowerCase()+(e.fromHolder?" from "+e.fromHolder:""), e.note].filter(Boolean).join(" | ") : e.t==="field" ? fieldText(e) : e.t==="edit" ? editText(e) : SHELF_TXT[e.t] ? (e.note||"") : [e.sanitized&&"Sanitized: "+e.sanitized,e.failType&&"Failure: "+e.failType,e.failedPart&&"Part: "+e.failedPart,e.condition,e.issue,e.diagnosis,e.repair,e.parts,e.notes].filter(Boolean).join(" | ");
     lines.push([d.serial,d.model,d.mfr||"",d.partNo||"",d.mfg||"",d.unitType||"",d.condition||"",LOC[d.location]?.name,d.holder||"",d.source,e.t==="move"?"Transfer":e.t==="field"?"Field change":e.t==="edit"?"Correction":SHELF_TXT[e.t]||"DNR",e.t==="move"?(LOC[e.from]?.name||"Check-in"):"",e.t==="move"?LOC[e.to]?.name:LOC[d.location]?.name,e.holder||"",e.at,nameOf(e.by),details,e.failType||"",e.failedPart||"",e.file?"Yes":""].map(q).join(","));
   }));
-  try{ await downloadsCap.save({filename:`device-trail-${new Date().toISOString().slice(0,10)}.csv`, data:lines.join("\n")}); toast("Export saved"); }
-  catch(e){ if(e?.code!=="declined") toast("Export isn't available here."); }
+  const fn=`device-trail-${new Date().toISOString().slice(0,10)}.csv`, csv=lines.join("\n");
+  if(downloadsCap){
+    try{ await downloadsCap.save({filename:fn, data:csv}); toast("Export saved"); }
+    catch(e){ if(e?.code!=="declined") toast("Export isn't available here."); }
+    return;
+  }
+  try{
+    const url=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+    const a=document.createElement("a"); a.href=url; a.download=fn; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),3000); toast("Export saved to your downloads");
+  }catch{ toast("Export isn't available here."); }
 }
 
 /* ---------- Plate scanner ---------- */
@@ -824,10 +835,17 @@ async function startBarcodeLoop(){
     const v=$("#cam");
     if(v?.videoWidth){
       n++;
-      if(n===1||n%10===0) $("#ocrstat").textContent=`Looking for a barcode. Camera ${v.videoWidth}x${v.videoHeight}, reader: ${bcDetector?"built-in + backup":"backup"}${reader?"":" (loading)"}. Hold the label inside the box, 4 to 6 inches away.`;
+      if(n===1||n%10===0) $("#ocrstat").textContent=`Looking for a barcode. Camera ${v.videoWidth}x${v.videoHeight}, reader: ${bcDetector?"built-in + backup":"backup"}${reader?"":" (loading)"}. ${bulkMode&&bcDetector?"Several labels in view at once is fine, or sweep across them one by one.":"Hold the label inside the box, 4 to 6 inches away."}`;
       let val=null, fmt="", eng="";
       try{
-        if(bcDetector){ const r=await bcDetector.detect(v); if(r&&r.length){ const pick=r.find(x=>parseGS1(x.rawValue)?.serial)||r[0]; val=pick.rawValue; fmt=pick.format||""; eng="built-in reader"; } }
+        if(bcDetector){ const r=await bcDetector.detect(v);
+          if(bulkMode && r && r.length>1){
+            const all=r.map(x=>({v:String(x.rawValue||"").trim(),f:x.format||""})).filter(x=>x.v);
+            const withSerial=all.filter(x=>!productOnly(x.v,x.f));
+            for(const x of (withSerial.length?withSerial:all)) await bulkScan(x.v,x.f,"built-in reader");
+            bcTimer=setTimeout(tick,200); return;
+          }
+          if(r&&r.length){ const pick=r.find(x=>parseGS1(x.rawValue)?.serial)||r[0]; val=pick.rawValue; fmt=pick.format||""; eng="built-in reader"; } }
       }catch{}
       if(!val && reader && (!bcDetector || n%2===0)){
         try{
