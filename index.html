@@ -762,7 +762,7 @@ function render(){
   else m.innerHTML=activityView();
 }
 function deviceBtn(d){
-  return `<button data-open="${esc(d.id)}"><span class="serial">${esc(d.serial)}</span><span class="model">${esc(d.model||"Unknown model")} ${tagChip(d)}</span><span class="since${overdue(d)?" over":""}">in ${esc(ago(lastMoveInto(d)))}${overdue(d)?" · overdue":""}</span></button>`;
+  return `<button data-open="${esc(d.id)}"><span class="serial">${esc(d.serial)}</span><span class="model">${esc(d.model||"Unknown model")} ${tagChip(d)}</span><span class="since${overdue(d)?" over":""}" title="Time in this spot">${esc(ago(lastMoveInto(d)))}${overdue(d)?" · overdue":""}</span></button>`;
 }
 function floorView(){
   const all=sortedDevices().filter(active);
