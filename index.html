@@ -66,6 +66,8 @@ main{max-width:1200px;margin:0 auto;padding:16px}
 .serial{font-family:var(--display);font-weight:600;font-size:1rem;overflow-wrap:anywhere}
 .model{font-size:.85rem;color:var(--ink-2);grid-column:1}
 .since{font-size:.8rem;color:var(--ink-2);grid-row:1 / span 2;grid-column:2;align-self:center;text-align:right}
+.since.over{color:var(--t-red);font-weight:700}
+.overdue-chip{font-size:.75rem;font-weight:700;color:var(--t-red);border:1px solid var(--t-red);border-radius:999px;padding:1px 8px;margin-left:auto;margin-right:8px;align-self:center}
 .empty-loc{padding:6px 14px 14px;color:var(--ink-2);font-size:.9rem}
 .more{padding:8px 14px 12px;font-size:.85rem;color:var(--ink-2)}
 
@@ -632,6 +634,10 @@ async function resolveNames(){
 
 /* ---------- Helpers on device records ---------- */
 function lastMoveInto(d){ const ev=(d.events||[]).filter(e=>e.t==="move"); return ev.length? ev[ev.length-1].at : d.createdAt; }
+// How many days a unit can sit in a spot before it's flagged. Change the numbers here.
+const AGE_LIMIT={contam:3, defective:14, checkin:7, intake:7, bench:7};
+const daysIn=d=>(Date.now()-new Date(lastMoveInto(d)))/864e5;
+const overdue=d=>active(d) && AGE_LIMIT[d.location]!==undefined && daysIn(d)>AGE_LIMIT[d.location];
 function sortedDevices(){ return [...state.devices.entries()].map(([id,d])=>({id,...d})).sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||"")); }
 // A typed serial that's one slip away from one already on file: a swapped pair, a dropped or extra
 // character, or a look-alike (O/0, I/1, S/5, B/8, M/N...). Plain digit changes don't count, since
@@ -702,7 +708,7 @@ function render(){
   else m.innerHTML=activityView();
 }
 function deviceBtn(d){
-  return `<button data-open="${esc(d.id)}"><span class="serial">${esc(d.serial)}</span><span class="model">${esc(d.model||"Unknown model")} ${tagChip(d)}</span><span class="since">in ${esc(ago(lastMoveInto(d)))}</span></button>`;
+  return `<button data-open="${esc(d.id)}"><span class="serial">${esc(d.serial)}</span><span class="model">${esc(d.model||"Unknown model")} ${tagChip(d)}</span><span class="since${overdue(d)?" over":""}">in ${esc(ago(lastMoveInto(d)))}${overdue(d)?" · overdue":""}</span></button>`;
 }
 function floorView(){
   const all=sortedDevices().filter(active);
@@ -713,7 +719,7 @@ function floorView(){
     const cap = endState ? 8 : 40;
     const shown = endState ? here.slice(-cap).reverse() : here.slice(0,cap);
     return `<section class="loc" style="${tone(l.id)}">
-      <div class="loc-head"><h2>${esc(l.name)}</h2><span class="count" aria-label="${here.length} devices">${here.length}</span></div>
+      <div class="loc-head"><h2>${esc(l.name)}</h2>${(n=>n?`<span class="overdue-chip">${n} over ${AGE_LIMIT[l.id]}d</span>`:"")(here.filter(overdue).length)}<span class="count" aria-label="${here.length} devices">${here.length}</span></div>
       ${here.length&&(l.id==="customer"||l.id==="rep"||l.id==="event")?`<div class="tagbar">${[...new Set(here.map(d=>d.holder).filter(Boolean))].sort().slice(0,8).map(h=>`<button class="tag who" data-holder="${esc(h)}" data-kind="${HOLDER[l.id]}">${esc(h)} ${here.filter(d=>d.holder===h).length}</button>`).join("")}</div>`
         : here.length&&l.id==="event"?`<div class="tagbar">${UNIT_TYPES.map(t=>[t,here.filter(d=>d.unitType===t).length]).filter(x=>x[1]).map(([t,n])=>`<button class="tag" data-tagfilter="${esc(t)}">${esc(t)} ${n}</button>`).join("")}</div>`:""}
       ${here.length ? `<ul>${shown.map(d=>`<li>${deviceBtn(d)}</li>`).join("")}</ul>` : `<p class="empty-loc">Nothing here.</p>`}
@@ -764,9 +770,9 @@ function reportsView(){
   let h=`<div class="toolbar"><h2>Reports</h2><select data-repf="range" aria-label="Date range">${opt([["30","Last 30 days"],["90","Last 90 days"],["365","Last 12 months"],["all","All time"]],R.range)}</select></div>`;
 
   // 1. Needs attention
-  const stale=devs.filter(d=>active(d)&&SERVICE_SIDE.includes(d.location)&&Date.now()-new Date(lastMoveInto(d))>AGE_DAYS*864e5).sort((a,b)=>lastMoveInto(a).localeCompare(lastMoveInto(b)));
+  const stale=devs.filter(overdue).sort((a,b)=>lastMoveInto(a).localeCompare(lastMoveInto(b)));
   const longTimers=devs.filter(d=>d.repairStart&&Date.now()-new Date(d.repairStart.at)>8*36e5);
-  h+=`<div class="rsec"><h2>Needs attention</h2><p class="meta">Units sitting in check-in, service, or a closet more than ${AGE_DAYS} days, and repair timers left running over 8 hours.</p>`;
+  h+=`<div class="rsec"><h2>Needs attention</h2><p class="meta">Units past their limit: contamination closet ${AGE_LIMIT.contam} days, defective closet ${AGE_LIMIT.defective} days, check-in and service bench ${AGE_LIMIT.checkin} days. Also repair timers left running over 8 hours.</p>`;
   h+= stale.length||longTimers.length ? `<div class="tablewrap"><table class="rtable"><tr><th>Serial</th><th>Model</th><th>Where</th><th>Waiting</th></tr>
     ${longTimers.map(d=>`<tr><td>${serialBtn(d)}</td><td>${esc(d.model||"")}</td><td>Timer still running</td><td class="n">${esc(fmtDur(Date.now()-new Date(d.repairStart.at)))}</td></tr>`).join("")}
     ${stale.map(d=>`<tr><td>${serialBtn(d)}</td><td>${esc(d.model||"")}</td><td>${esc(LOC[d.location]?.name)}${d.condition?` · ${esc(d.condition)}`:""}</td><td class="n">${esc(fmtDur(Date.now()-new Date(lastMoveInto(d))))}</td></tr>`).join("")}</table></div>`
