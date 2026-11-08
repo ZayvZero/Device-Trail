@@ -91,6 +91,15 @@ dialog::backdrop{background:rgba(10,16,22,.55)}
 .sheet-head{padding:16px 18px 12px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
 .sheet-head h2{font-size:1.45rem;flex:1;overflow-wrap:anywhere}
 .sheet-body{padding:14px 18px 20px;overflow:auto}
+#viewer{position:fixed;inset:0;z-index:50;background:#000;color:#fff;display:flex;flex-direction:column}
+#viewer .vbar{display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;font-size:.9rem}
+#viewer .vbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#viewer .vopen{color:#fff;font-size:.85rem}
+#viewer .vstage{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding:0 8px 16px}
+#viewer .vstage img{max-width:100%;max-height:100%;object-fit:contain}
+#viewer .vbtn{background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:999px;width:44px;height:44px;font-size:1.6rem;line-height:1;cursor:pointer}
+#viewer .vprev,#viewer .vnext{position:absolute;top:50%;transform:translateY(-50%)}
+#viewer .vprev{left:8px} #viewer .vnext{right:8px}
 .x{background:none;border:0;font-size:1.6rem;line-height:1;padding:2px 6px;cursor:pointer;color:var(--ink-2)}
 .facts{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:.95rem;margin:0 0 14px}
 .facts dt{color:var(--ink-2)}
@@ -338,6 +347,16 @@ function outText(x){
     : x.location==="event" ? `is out at ${who||"an event"}`
     : "went back to the manufacturer";
 }
+// Where an out unit was last reported, for check-in prompts
+function whereOut(x){
+  const who=x.holder;
+  return x.location==="sold" ? `as sold to ${who||"a customer"}`
+    : x.location==="customer" ? `at ${who||"a customer"}${x.unitType?` (${x.unitType.toLowerCase()})`:""}`
+    : x.location==="rep" ? `with ${who?"rep "+who:"a rep"}`
+    : x.location==="event" ? `at ${who||"an event"}`
+    : "as returned to the manufacturer";
+}
+const lastReported=x=>`was last reported ${whereOut(x)} as of ${stamp(lastMoveInto(x))}`;
 // Moves that put a device back in front of customers or into sellable stock
 const CLEAN_ONLY = ["ready","newsale","cpo","marketing","event","customer","rep","sold","shipped"];
 // Not cleared: latest D&R that answered the sanitized question said No, and it hasn't left the contamination closet since
@@ -501,7 +520,7 @@ function attachStore(){
     state.devices = new Map(Object.entries(all));
     resolveNames(); render();
     // Don't wipe a half-filled form when a teammate's change arrives
-    const busy=dnrOpen||docOpen||editOpen||spEdit||pickDest||shelfOpen||fixIdx!==null||photoOpen;
+    const busy=dnrOpen||docOpen||editOpen||spEdit||pickDest||shelfOpen||fixIdx!==null||photoOpen||viewer;
     if(state.openId && $("#dlg").open && !busy) openDevice(state.openId, true);
     if(sb && state.mode==="shared") offerCopy();
   });
@@ -611,6 +630,41 @@ async function savePassword(e){
   if(error) return fail(/same|different/i.test(error.message)?"That's your current password. Pick a new one.":/weak|short|characters/i.test(error.message)?"Supabase says that password is too weak. Try a longer one.":/reauth|recent/i.test(error.message)?"Sign out and back in, then try again.":"Couldn't change it. Check your connection and try again.");
   $("#dlg").close(); toast("Password changed");
 }
+// Photo viewer: opens over the device details so you never leave the page.
+// Steps through every photo on the device in the order shown, with buttons, swipe, or arrow keys.
+const urlCache={};
+async function signedUrl(path){
+  const c=urlCache[path]; if(c && c.until>Date.now()) return c.url;
+  const {data,error}=await sb.storage.from("files").createSignedUrl(path,3600);
+  if(error||!data) throw error||new Error("no url");
+  urlCache[path]={url:data.signedUrl, until:Date.now()+50*60000}; return data.signedUrl;
+}
+let viewer=null;
+function openViewer(path){
+  const seen=new Set(), list=[];
+  $("#dlg").querySelectorAll("[data-sbfile][data-img]").forEach(b=>{ const p=b.dataset.sbfile; if(!seen.has(p)){ seen.add(p); list.push({path:p,label:b.textContent.trim()}); } });
+  if(!list.length) return;
+  viewer={list, i:Math.max(0,list.findIndex(x=>x.path===path))};
+  let v=$("#viewer");
+  if(!v){ v=document.createElement("div"); v.id="viewer"; v.setAttribute("role","dialog"); v.setAttribute("aria-label","Photo viewer"); $("#dlg").appendChild(v); }
+  showViewer();
+}
+async function showViewer(){
+  const v=$("#viewer"); if(!v||!viewer) return;
+  const {list,i}=viewer, it=list[i], many=list.length>1;
+  v.innerHTML=`<div class="vbar"><span>${i+1} of ${list.length}${it.label?` · ${esc(it.label)}`:""}</span><a class="vopen" id="vOpen" target="_blank" rel="noopener" hidden>Open full size</a><button type="button" class="vbtn" data-act="vclose" aria-label="Close">×</button></div>
+    <div class="vstage"><p class="vmsg" id="vMsg">Loading…</p><img id="vImg" alt="${esc(it.label||"Photo")}" hidden></div>
+    ${many?`<button type="button" class="vbtn vprev" data-act="vprev" aria-label="Previous photo">‹</button><button type="button" class="vbtn vnext" data-act="vnext" aria-label="Next photo">›</button>`:""}`;
+  try{
+    const url=await signedUrl(it.path); if(!viewer||viewer.list[viewer.i]!==it) return;
+    const img=$("#vImg"); img.onload=()=>{ img.hidden=false; $("#vMsg").hidden=true; };
+    img.onerror=()=>{ $("#vMsg").textContent="Couldn't load this photo."; };
+    img.src=url; const o=$("#vOpen"); o.href=url; o.hidden=false;
+    list.forEach((x,k)=>{ if(Math.abs(k-i)===1) signedUrl(x.path).then(u=>{ new Image().src=u; }).catch(()=>{}); });
+  }catch{ const m=$("#vMsg"); if(m) m.textContent="Couldn't load this photo. Check your connection."; }
+}
+function stepViewer(n){ if(!viewer) return; viewer.i=(viewer.i+n+viewer.list.length)%viewer.list.length; showViewer(); }
+function closeViewer(){ viewer=null; $("#viewer")?.remove(); }
 async function openSbFile(path){
   const w=window.open("","_blank");
   const {data,error}=await sb.storage.from("files").createSignedUrl(path,3600);
@@ -935,6 +989,8 @@ function openDevice(id, keepState){
   const docsN=(d.events||[]).filter(e=>e.t==="doc").length+(d.spLink?1:0);
   const sec=(key,title,body,forceOpen)=>body?`<details class="dsec" data-sec="${key}"${forceOpen||secOpen.has(key)?" open":""}><summary>${title}</summary><div class="dsec-body">${body}</div></details>`:"";
   const TRAIL_N=5;
+  // A refresh of the same device keeps your place instead of jumping back to the top
+  const keepY = keepState && dlg.open ? (dlg.querySelector(".sheet-body")?.scrollTop||0) : 0;
   dlg.innerHTML=`<div class="sheet">
     <div class="sheet-head"><div style="flex:1"><h2>${esc(d.serial)}</h2>
       <div class="headtags"><span class="chip" style="${tone(d.location)}">${esc(locLabel(d.location))}${HOLDER[d.location]?`: ${esc(d.holder||"name not recorded")}`:""}</span>${d.condition?`<span class="tag">${esc(d.condition)}</span>`:""}${d.unitType?`<span class="tag">${esc(d.unitType)}</span>`:""}</div>
@@ -943,7 +999,7 @@ function openDevice(id, keepState){
     <div class="sheet-body">
       ${editOpen?editForm(d):""}
       ${shelved?`<div class="nudge shelf"><span>${d.voided?`Voided as a mistaken entry ${esc(stamp(d.voided.at))} by ${esc(nameOf(d.voided.by))}. Reason: ${esc(d.voided.reason)}`:`Archived ${esc(stamp(d.archived.at))} by ${esc(nameOf(d.archived.by))}${d.archived.note?`. ${esc(d.archived.note)}`:""}`}. Its trail is kept.</span>${state.canWrite?`<button class="btn" data-act="${d.voided?"unvoid":"unarchive"}">${d.voided?"Undo void":"Restore"}</button>`:""}</div>`:""}
-      ${!shelved&&isOut(d)&&d.location!=="shipped"?`<div class="nudge loaner"><span>This unit ${esc(outText(d))} since ${esc(stamp(lastMoveInto(d)))}. When it comes back, check it in here.</span>${state.canWrite?`<button class="btn" data-act="returnback" data-id="${esc(id)}">Check back in</button>`:""}</div>`:""}
+      ${!shelved&&isOut(d)&&d.location!=="shipped"?`<div class="nudge loaner"><span>This unit ${esc(lastReported(d))}. When it comes back, check it in here.</span>${state.canWrite?`<button class="btn" data-act="returnback" data-id="${esc(id)}">Check back in</button>`:""}</div>`:""}
       ${d.location==="event"&&!d.holder&&canAct?`<div class="nudge soft"><span>No event is recorded for this unit. If it's actually in the warehouse, move it to Marketing and set its unit type to Event.</span><button class="btn" data-dest="marketing">Move to Marketing</button></div>`:""}
       ${needsSan?`<div class="nudge"><span>Last D&R says this device isn't sanitized.</span>${state.canWrite?`<button class="btn" data-act="tocontam">Move to contamination closet</button>`:""}</div>`:""}
       ${fixIdx===null?timerBox(d):""}
@@ -980,6 +1036,7 @@ function openDevice(id, keepState){
         ${evs.length>TRAIL_N?`<button class="linkbtn" data-act="toggletrail">${trailAll?"Show recent only":`Show full history (${evs.length})`}</button>`:""}</div>
     </div></div>`;
   if(!dlg.open) dlg.showModal();
+  if(keepY){ const sb2=dlg.querySelector(".sheet-body"); if(sb2) sb2.scrollTop=keepY; }
 }
 function shelfForm(){
   if(shelfOpen==="archive") return `<div class="editbox"><p class="meta">Archived units leave the Floor and Custody views. The unit and its whole trail stay searchable, and you can restore it any time.</p>
@@ -1012,7 +1069,7 @@ function evItem(e){
   if(e.t==="timer") return `<li style="--tone:var(--t-bench)"><div class="what">${e.act==="start"?"Repair timer started":"Repair timer canceled"}</div><div class="meta">${esc(stamp(e.at))} · ${esc(byText(e))}</div></li>`;
   if(e.t==="doc") return `<li style="--tone:var(--t-new)"><div class="what">${esc(e.docType)} added</div><div class="meta">${esc(stamp(e.at))} · ${esc(byText(e))}</div>${e.note?`<div class="note">${esc(e.note)}</div>`:""}${origBlock(e)}${e.file?`<div class="files">${fileLink(e.file,"Open")}</div>`:""}</li>`;
   const rows=[["Sanitized",e.sanitized],["Failure type",e.failType],["What was wrong",[e.problem,e.errorCode&&`error ${e.errorCode}`].filter(Boolean).join(", ")],["What was done",(e.actions||[]).join(", ")],["Hands-on time",e.minutes?fmtMin(e.minutes):""],e.partsUsed?["Parts replaced",partsText(e)]:["Failed part",e.failedPart],["Condition",e.condition],["Reported issue",e.issue],["Diagnosis",e.diagnosis],["Repair",e.repair],["Parts",e.parts],["Notes",e.notes]].filter(r=>r[1]);
-  const att=e.file?.path?`<button type="button" class="att btn ghost sm" data-sbfile="${esc(e.file.path)}">${e.file.type.startsWith("image/")?"View attached photo":`Open D&R form (${fileKind(e.file.type)})`}</button>`:e.file?(e.file.type.startsWith("image/")?`<a class="att" href="${esc(fileUrl(e.file))}" target="_blank" rel="noopener"><img src="${esc(fileUrl(e.file))}" alt="Attached D&R form"></a>`:`<a class="att btn ghost sm" href="${esc(fileUrl(e.file))}" target="_blank" rel="noopener" download="${esc(e.file.name||"D&R form")}">Open D&R form (${fileKind(e.file.type)})</a>`):"";
+  const att=e.file?.path?`<button type="button" class="att btn ghost sm" data-sbfile="${esc(e.file.path)}"${e.file.type.startsWith("image/")?" data-img":""}>${e.file.type.startsWith("image/")?"View attached photo":`Open D&R form (${fileKind(e.file.type)})`}</button>`:e.file?(e.file.type.startsWith("image/")?`<a class="att" href="${esc(fileUrl(e.file))}" target="_blank" rel="noopener"><img src="${esc(fileUrl(e.file))}" alt="Attached D&R form"></a>`:`<a class="att btn ghost sm" href="${esc(fileUrl(e.file))}" target="_blank" rel="noopener" download="${esc(e.file.name||"D&R form")}">Open D&R form (${fileKind(e.file.type)})</a>`):"";
   return `<li style="--tone:var(--accent)"><div class="what">D&R entry</div><div class="meta">${esc(stamp(e.at))} · ${esc(byText(e))}${fixBtn(e)}</div>
     <div class="dnr">${rows.length?`<dl>${rows.map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>`:""}${att}${e.formPages?.length?`<div class="files">${e.formPages.map((p,i)=>fileLink(p,`D&R page ${i+1}`)).join("")}</div>`:""}${e.photos?.length?`<div class="files">${e.photos.map((p,i)=>fileLink(p,photoName(p,i))).join("")}</div>`:""}${origBlock(e)}</div></li>`;
 }
@@ -1288,7 +1345,7 @@ function renderBulk(){
   $("#bkList").innerHTML=bulkRows.map((r,i)=>{
     const d=r.id?state.devices.get(r.id):null;
     if(r.kind==="dup"){ const x=state.devices.get(r.id); const out=x&&isOut(x);
-      return `<li class="dup"><b>${esc(r.serial)}</b> <span class="meta">${out?`${esc(outText(x))}, coming back`:x?.location==="checkin"&&r.back?"checked back in":"already on file"}</span> ${out?`<button class="btn sm" data-act="returnback" data-id="${esc(r.id)}">Check back in</button>`:`<button class="btn ghost sm" data-open="${esc(r.id)}">Open</button>`}</li>`; }
+      return `<li class="dup"><b>${esc(r.serial)}</b> <span class="meta">${out?`last reported ${esc(whereOut(x))}, coming back`:x?.location==="checkin"&&r.back?"checked back in":"already on file"}</span> ${out?`<button class="btn sm" data-act="returnback" data-id="${esc(r.id)}">Check back in</button>`:`<button class="btn ghost sm" data-open="${esc(r.id)}">Open</button>`}</li>`; }
     if(r.kind==="skip") return `<li class="dup"><span class="meta">${esc(r.msg)}</span></li>`;
     const model=d?.model||"", mfg=d?.mfg||"";
     return `<li><b>${esc(r.serial)}</b> <span class="meta">${esc(model||"model unknown")}${mfg?` · ${esc(mfg)}`:" · no date"}</span>
@@ -1311,7 +1368,7 @@ async function bulkScan(val, fmt, engine){
   if(!serial){ stat.textContent="Read a code but couldn't find a serial in it. Type the serial below."; return false; }
   if(navigator.vibrate) try{ navigator.vibrate(60); }catch{}
   const existing=findBySerial(serial);
-  if(existing){ const x=state.devices.get(existing); bulkRows.push({kind:"dup",serial,id:existing}); stat.textContent=x&&isOut(x)?`${serial} ${outText(x)}. Tap Check back in on it below.`:`${serial} is already on file. Skipped.`; renderBulk(); return false; }
+  if(existing){ const x=state.devices.get(existing); bulkRows.push({kind:"dup",serial,id:existing}); stat.textContent=x&&isOut(x)?`${serial} ${lastReported(x)}. Tap Check back in on it below.`:`${serial} is already on file. Skipped.`; renderBulk(); return false; }
   if(!state.canWrite){ stat.textContent="You don't have permission to check in devices."; return false; }
   // Typed serials have to be entered twice in a row before they save
   if(typed){
@@ -1345,7 +1402,7 @@ async function submitCheckin(e){
   if(!serial){ err.textContent="Enter the serial number."; err.hidden=false; return; }
   const existing=findBySerial(serial);
   if(existing){ const x=state.devices.get(existing);
-    if(x && isOut(x)){ err.innerHTML=`This unit ${esc(outText(x))} as of ${esc(stamp(lastMoveInto(x)))}. It's coming back, not new. <button type="button" class="btn" data-act="returnback" data-id="${esc(existing)}">Check it back in</button>`; err.hidden=false; return; }
+    if(x && isOut(x)){ err.innerHTML=`This unit ${esc(lastReported(x))}. It's coming back, not new. <button type="button" class="btn" data-act="returnback" data-id="${esc(existing)}">Check it back in</button>`; err.hidden=false; return; }
     err.innerHTML=`Serial ${esc(serial)} is already on file. <button type="button" class="btn" data-open="${esc(existing)}">Open it</button>`; err.hidden=false; return; }
   if(!state.canWrite){ toast("You don't have permission to check in devices."); return; }
   // Serials typed by hand (not filled by the camera) are entered twice, and checked against near misses
@@ -1483,7 +1540,7 @@ async function undoMove(idx){
   if(ok){ toast(`Undone. Back at ${LOC[e.from]?.name}`); openDevice(id,true); }
 }
 const partsText=e=>(e.partsUsed||[]).map(p=>p.part+(p.serial?` (SN ${p.serial})`:"")+(p.mfrFault?" [manufacturer fault]":"")).join("\n");
-const fileLink=(f,label)=>f.path?`<button type="button" class="btn ghost sm" data-sbfile="${esc(f.path)}">${esc(label)}</button>`:`<a class="btn ghost sm" href="${esc(fileUrl(f))}" target="_blank" rel="noopener">${esc(label)}</a>`;
+const fileLink=(f,label)=>f.path?`<button type="button" class="btn ghost sm" data-sbfile="${esc(f.path)}"${/^image\//.test(f.type||"")?" data-img":""}>${esc(label)}</button>`:`<a class="btn ghost sm" href="${esc(fileUrl(f))}" target="_blank" rel="noopener">${esc(label)}</a>`;
 const DOC_TYPES=["Customer support record","Replacement agreement","Loaner agreement","Service report","Shipping document","Other"];
 const TESTING_NOTE=`<p class="testnote">Testing phase: dummy files only. No customer names or personal info yet.</p>`;
 function docsSection(d, shelved){
@@ -1978,7 +2035,7 @@ document.addEventListener("click", e=>{
   if(t.dataset.zone!==undefined){ myZone=t.dataset.zone; try{ localStorage.setItem(ZKEY,myZone); }catch{} render(); return; }
   if(t.dataset.tab){ state.tab=t.dataset.tab; state.holder=null; render(); return; }
   if(t.dataset.open){ openDevice(t.dataset.open); return; }
-  if(t.dataset.sbfile){ openSbFile(t.dataset.sbfile); return; }
+  if(t.dataset.sbfile){ if(t.hasAttribute("data-img")) openViewer(t.dataset.sbfile); else openSbFile(t.dataset.sbfile); return; }
   if(t.dataset.phrm!==undefined){ const [k,i]=t.dataset.phrm.split(":"); pendList(k).splice(+i,1); $(k==="form"?"#fmList":"#phList").innerHTML=phThumbs(k); updShotCount(); return; }
   if(t.dataset.fix!==undefined){ clearPending(); const i=+t.dataset.fix, e=state.devices.get(state.openId)?.events?.[i]; if(!e) return; fixIdx=i; pickDest=null; docOpen=false; dnrOpen=e.t==="dnr"; openDevice(state.openId,true); return; }
   if(t.dataset.undo!==undefined){ undoMove(+t.dataset.undo); return; }
@@ -1990,6 +2047,9 @@ document.addEventListener("click", e=>{
   const seg=t.closest("[data-seg]"); if(seg){ seg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b===t))); return; }
   switch(t.dataset.act){
     case "close": $("#dlg").close(); break;
+    case "vclose": closeViewer(); break;
+    case "vprev": stepViewer(-1); break;
+    case "vnext": stepViewer(1); break;
     case "checkin": openCheckin(); break;
     case "export": exportCsv(); break;
     case "moredest": moreDest=true; openDevice(state.openId,true); break;
@@ -2064,7 +2124,11 @@ document.addEventListener("submit", e=>{ if(e.target.id==="ciForm") submitChecki
   if(e.target.id==="nameForm") saveName(e);
   if(e.target.id==="pwForm") savePassword(e);
   if(e.target.id==="bkForm"){ e.preventDefault(); const i=$("#bkInput"); const v=i.value; i.value=""; bulkLast.v=""; bulkScan(v,"typed","scanner gun or keyboard"); i.focus(); } });
-$("#dlg").addEventListener("close", ()=>{ state.openId=null; stopCam(); closeShots(); bulkMode=false; dateHunt=false; });
+$("#dlg").addEventListener("cancel", e=>{ if(viewer){ e.preventDefault(); closeViewer(); } });
+document.addEventListener("keydown", e=>{ if(!viewer) return; if(e.key==="ArrowLeft") stepViewer(-1); else if(e.key==="ArrowRight") stepViewer(1); });
+{ let x0=null; document.addEventListener("touchstart", e=>{ if(viewer && e.target.closest("#viewer")) x0=e.touches[0].clientX; }, {passive:true});
+  document.addEventListener("touchend", e=>{ if(x0===null||!viewer) return; const dx=e.changedTouches[0].clientX-x0; x0=null; if(Math.abs(dx)>50) stepViewer(dx<0?1:-1); }, {passive:true}); }
+$("#dlg").addEventListener("close", ()=>{ closeViewer(); state.openId=null; stopCam(); closeShots(); bulkMode=false; dateHunt=false; });
 $("#dlg").addEventListener("click", e=>{ if(e.target===$("#dlg")) $("#dlg").close(); });
 $("#scanForm").addEventListener("submit", e=>{
   e.preventDefault(); const v=$("#scan").value.trim(); if(!v) return;
