@@ -111,7 +111,7 @@ dialog::backdrop{background:rgba(10,16,22,.55)}
 .dest button::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;background:var(--tone)}
 .dest button[aria-pressed="true"]{border-color:var(--tone);background:color-mix(in srgb,var(--tone) 12%,var(--surface))}
 label{display:block;font-size:.9rem;font-weight:500;margin:10px 0 4px}
-input[type=text],input[type=date],input[type=email],input[type=password],select,textarea{box-sizing:border-box;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:1rem}
+.logf input,input[type=text],input[type=date],input[type=email],input[type=password],select,textarea{box-sizing:border-box;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:1rem}
 textarea{min-height:64px;resize:vertical}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
 .partrow{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;padding:8px 0;border-bottom:1px dashed var(--line)}
@@ -372,7 +372,7 @@ const SOURCES = ["Shipment","Rep return","Customer return","Other"];
 const AREAS=[{id:"capital",name:"Capital",desc:"Devices with their own serial: check-in, floor, custody, D&Rs"},{id:"bio",name:"Bio",desc:"Biologics by lot, batch, and expiration"},{id:"other",name:"Other",desc:"Anything that doesn't fit the first two"}];
 const AKEY="device-trail-area";
 const savedArea=(()=>{ try{ return localStorage.getItem(AKEY)||""; }catch{ return ""; } })();
-const state = { area:savedArea, tab:"floor", devices:new Map(), mode:"loading", me:null, names:{}, filter:"", holder:null, showShelved:false, log:{type:"move",range:"7",loc:"",who:""}, rep:{range:"90"}, openId:null, canWrite:true };
+const state = { area:savedArea, tab:"floor", devices:new Map(), mode:"loading", me:null, names:{}, filter:"", holder:null, showShelved:false, log:{type:"move",range:"7",loc:"",who:"",serial:""}, rep:{range:"90"}, openId:null, canWrite:true };
 let store = null, userCap = null, downloadsCap = null, assetsCap = null, dnrFile = null;
 /* Shared team database (Supabase). The publishable key is safe in the page: sign-in and table rules keep records private. */
 const SB_URL="https://sssmyfmvbndiclkrmgdf.supabase.co", SB_KEY="sb_publishable_6Qpqrqfre_Ga4y_L5kpEkg_iwWDlrDW";
@@ -942,12 +942,14 @@ function activityView(){
   let since="";
   if(L.range==="1"){ const t=new Date(); t.setHours(0,0,0,0); since=t.toISOString(); }
   else if(L.range!=="all") since=new Date(Date.now()-(+L.range)*864e5).toISOString();
+  const sq=serialKey(L.serial);
   const typeOk=e=> L.type==="all" || (L.type==="move"&&e.t==="move") || (L.type==="dnr"&&e.t==="dnr") || (L.type==="doc"&&e.t==="doc") || (L.type==="changes"&&(e.t==="field"||e.t==="edit")) || (L.type==="shelf"&&!!SHELF_TXT[e.t]);
-  const hits=rows.filter(e=>typeOk(e) && (!since||e.at>=since) && (!L.loc||e.to===L.loc||e.from===L.loc) && (!L.who||e.by===L.who)).sort((a,b)=>b.at.localeCompare(a.at));
+  const hits=rows.filter(e=>typeOk(e) && (!since||e.at>=since) && (!L.loc||e.to===L.loc||e.from===L.loc) && (!L.who||e.by===L.who) && (!sq||serialKey(e.serial).includes(sq))).sort((a,b)=>b.at.localeCompare(a.at));
   const top=hits.slice(0,150);
   const opt=(list,val)=>list.map(([v,t])=>`<option value="${esc(v)}"${v===val?" selected":""}>${esc(t)}</option>`).join("");
   return `<div class="toolbar"><h2>Transfer log</h2><button class="btn ghost" data-act="export">Export full log</button></div>
   <div class="logf">
+    <input type="search" id="logSerial" value="${esc(L.serial||"")}" placeholder="Serial number" aria-label="Search by serial number" autocapitalize="characters" autocomplete="off">
     <select data-logf="type" aria-label="What">${opt(LOG_TYPES,L.type)}</select>
     <select data-logf="range" aria-label="When">${opt(LOG_RANGES,L.range)}</select>
     <select data-logf="loc" aria-label="Location">${opt([["","Any location"],...[...LOCS,...OLD_LOCS].map(l=>[l.id,l.name])],L.loc)}</select>
@@ -957,7 +959,7 @@ function activityView(){
   <div class="list">${top.length? top.map(e=>`<button class="row" data-open="${esc(e.id)}">
     <span><span class="serial">${esc(e.serial)}</span> <span class="meta">${esc(e.model||"")}</span></span><span class="meta">${esc(stamp(e.at))}</span>
     <span class="meta">${logText(e)}${e.note?` · ${esc(e.note)}`:""}</span>
-    <span class="meta">${esc(byText(e))}</span></button>`).join("") : `<div class="empty">Nothing matches these filters. Widen the date range or pick Everything.</div>`}</div>`;
+    <span class="meta">${esc(byText(e))}</span></button>`).join("") : `<div class="empty">${sq?`No entries for that serial with these filters. Try What: Everything and When: All time.`:`Nothing matches these filters. Widen the date range or pick Everything.`}</div>`}</div>`;
 }
 
 /* ---------- Device sheet ---------- */
@@ -2113,7 +2115,8 @@ document.addEventListener("click", e=>{
 });
 document.addEventListener("change", e=>{ if(e.target.matches?.("[data-mfrsel]")){ const o=$("#"+e.target.id+"Other"); if(o){ o.hidden=e.target.value!=="__other"; if(!o.hidden) o.focus(); } return; } const lf=e.target.dataset?.logf; if(lf){ state.log[lf]=e.target.value; render(); return; } const f=e.target.dataset?.field; if(f && state.openId) setField(f, e.target.value);
   const rf=e.target.dataset?.repf; if(rf){ state.rep[rf]=e.target.value; render(); } });
-document.addEventListener("input", e=>{ if(e.target.id==="ciModel") syncMfr(); });
+document.addEventListener("input", e=>{ if(e.target.id==="ciModel") syncMfr();
+  if(e.target.id==="logSerial"){ state.log.serial=e.target.value; render(); const i=$("#logSerial"); if(i){ i.focus(); const n=i.value.length; try{ i.setSelectionRange(n,n); }catch{} } } });
 document.addEventListener("change", e=>{ if(e.target.id==="bmDest") bmDestChanged(); if(e.target.id==="phLib") addPhotos(e.target.files||[],"photos"); if(e.target.id==="phCam") addPhotos(e.target.files||[],shotKind);
   if(e.target.id==="dFile"){ const f=e.target.files?.[0]; $("#dFileMsg").textContent=f?`Attached: ${f.name}`:"Attach a photo, PDF, Word, or Excel file."; } });
 document.addEventListener("focusout", e=>{ if(e.target.id==="ciSerial") syncYear(); });
