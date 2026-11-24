@@ -311,10 +311,25 @@ const UNIT_TYPES=["New","Demo","Loaner","Replacement","CPO","Event"];
 const CONDITIONS=["New","Good","Needs repair","In repair","Defective"];
 // Locations that need a name: who has it
 const HOLDER={customer:"customer", sold:"customer", rep:"rep", event:"event"};
-const WHO={rep:{q:"Which rep?",ph:"Rep's name",need:"Enter which rep has it."},customer:{q:"Customer or company",ph:"Clinic or company name",need:"Enter the customer or company."},event:{q:"Which event?",ph:"Event name and city",need:"Enter which event it's going to."}};
+const WHO={rep:{q:"Which rep?",ph:"Rep's name",need:"Enter which rep has it."},customer:{q:"Which practice?",ph:"Practice or business name",need:"Enter the practice or business name.",hint:"Business name only. No patient or personal names."},event:{q:"Which event?",ph:"Event name and city",need:"Enter which event it's going to."}};
 const OUT=["event","customer","rep","sold","shipped"];
 const isOut = d => OUT.includes(d.location);
 const START_LOCS = LOCS.filter(l=>!OUT.includes(l.id));
+// Check-in can also start a unit where it already is out in the field
+const CHECKIN_LOCS = [...START_LOCS.map(l=>l.id),"customer","rep","event","sold"];
+// Name fields for a location that needs one (practice, rep, event). p is the id prefix.
+function whoFields(p){ return `<div id="${p}WhoWrap" hidden><label for="${p}Who" id="${p}WhoLbl">Who has it?</label><input type="text" id="${p}Who" autocomplete="off" list="${p}Holders"><datalist id="${p}Holders"></datalist><p class="meta" id="${p}WhoHint" hidden></p></div>
+    <div id="${p}RefWrap" hidden><label for="${p}Ref">Velocity number <span class="meta">(optional)</span></label><input type="text" id="${p}Ref" autocomplete="off"></div>`; }
+function whoSync(p, dest, sourceSeg){
+  const k=HOLDER[dest], w=$("#"+p+"WhoWrap"); if(!w) return;
+  w.hidden=!k; $("#"+p+"RefWrap").hidden=k!=="customer";
+  if(k){ $("#"+p+"WhoLbl").textContent=WHO[k].q; $("#"+p+"Who").placeholder=WHO[k].ph; const h=$("#"+p+"WhoHint"); h.hidden=!WHO[k].hint; h.textContent=WHO[k].hint||"";
+    $("#"+p+"Holders").innerHTML=knownHolders(k).map(h=>`<option value="${esc(h)}">`).join(""); }
+  // Out in the field means it was scanned there, not shipped in
+  if(sourceSeg){ const btns=[...document.querySelectorAll(`[data-seg="${sourceSeg}"] button`)], cur=btns.find(b=>b.getAttribute("aria-pressed")==="true")?.textContent;
+    const want=isOut({location:dest})?"Field scan":(cur==="Field scan"?"Shipment":cur);
+    btns.forEach(b=>b.setAttribute("aria-pressed",String(b.textContent===want))); }
+}
 // Older records used a single "shipped as" tag. Fold it into location and unit type.
 function normalize(d){
   if(!d) return d;
@@ -367,7 +382,7 @@ function notCleared(d){
   return !ev.slice(i+1).some(e=>e.t==="move" && e.from==="contam");
 }
 const FAIL_TYPES=["Electrical","Mechanical","Optical or laser","Software","Handpiece","Cooling","Cosmetic","No fault found","Other"];
-const SOURCES = ["Shipment","Rep return","Customer return","Other"];
+const SOURCES = ["Shipment","Rep return","Customer return","Field scan","Other"];
 
 const AREAS=[{id:"capital",name:"Capital",desc:"Devices with their own serial: check-in, floor, custody, D&Rs"},{id:"bio",name:"Bio",desc:"Biologics by lot, batch, and expiration"},{id:"other",name:"Other",desc:"Anything that doesn't fit the first two"}];
 const AKEY="device-trail-area";
@@ -1020,7 +1035,7 @@ function openDevice(id, keepState){
           return grid+toggle; })()}
         ${pickDest&&notCleared(d)&&CLEAN_ONLY.includes(pickDest)?`<div class="stop"><b>Stop. This device isn't cleared as sanitized.</b><span>The last D&R says it wasn't sanitized, and it hasn't been through the contamination closet since. It can't go to ${esc(LOC[pickDest].name)} until it's cleared.</span>
           <div class="actions"><button class="btn" data-act="dnr">Add D&R marking it sanitized</button><button class="btn primary" data-act="tocontam">Move to contamination closet</button></div></div>`:""}
-        ${pickDest&&notCleared(d)&&CLEAN_ONLY.includes(pickDest)?"":`${pickDest&&HOLDER[pickDest]?`<label for="mvWho">${WHO[HOLDER[pickDest]].q}</label><input type="text" id="mvWho" list="holderlist" autocomplete="off" value="${esc(HOLDER[d.location]===HOLDER[pickDest]?d.holder||"":"")}" placeholder="${WHO[HOLDER[pickDest]].ph}"><datalist id="holderlist">${knownHolders(HOLDER[pickDest]).map(h=>`<option value="${esc(h)}">`).join("")}</datalist>${HOLDER[pickDest]==="customer"?`<label for="mvRef">Velocity number <span class="meta">(optional)</span></label><input type="text" id="mvRef" autocomplete="off" value="${esc(HOLDER[d.location]==="customer"?d.holderRef||"":"")}">`:""}`:""}
+        ${pickDest&&notCleared(d)&&CLEAN_ONLY.includes(pickDest)?"":`${pickDest&&HOLDER[pickDest]?`<label for="mvWho">${WHO[HOLDER[pickDest]].q}</label><input type="text" id="mvWho" list="holderlist" autocomplete="off" value="${esc(HOLDER[d.location]===HOLDER[pickDest]?d.holder||"":"")}" placeholder="${WHO[HOLDER[pickDest]].ph}"><datalist id="holderlist">${knownHolders(HOLDER[pickDest]).map(h=>`<option value="${esc(h)}">`).join("")}</datalist>${WHO[HOLDER[pickDest]].hint?`<p class="meta">${WHO[HOLDER[pickDest]].hint}</p>`:""}${HOLDER[pickDest]==="customer"?`<label for="mvRef">Velocity number <span class="meta">(optional)</span></label><input type="text" id="mvRef" autocomplete="off" value="${esc(HOLDER[d.location]==="customer"?d.holderRef||"":"")}">`:""}`:""}
         ${pickDest?`<label for="mvNote">Note (optional)</label><input type="text" id="mvNote" placeholder="${pickDest==="partedout"?"Why, and which bin the parts went to":"Tracking number, reason, bin…"}">
         <div class="actions"><button class="btn ghost" data-act="cancelmove">Cancel</button><button class="btn primary" data-act="move">Record transfer to ${esc(LOC[pickDest].name)}</button></div>`:""}`}
 </div>`:""}
@@ -1237,9 +1252,10 @@ function openCheckin(serial=""){ ciAuto="";
     <datalist id="models">${[...new Set([...Object.keys(MODEL_MFR),...sortedDevices().map(d=>d.model)].filter(Boolean))].map(m=>`<option value="${esc(m)}">`).join("")}</datalist>
     <label for="ciMfr">Manufacturer</label>${mfrPicker("ciMfr","")}
     <label for="ciMfg">Manufactured <span class="meta">(full date, or just the year if that's all the label shows)</span></label><div class="datebar"><input type="text" id="ciMfg" inputmode="numeric" placeholder="2024-10-29 or 2022"><button type="button" class="btn ghost" data-act="readdate">Read date</button></div>
+    <label for="ciLoc">Where is it right now?</label><select id="ciLoc">${zoneOptions(CHECKIN_LOCS,myZone==="service"?"intake":"checkin")}</select>
+    ${whoFields("ci")}
     <label>Came from</label><div class="seg" data-seg="source">${SOURCES.map((s,i)=>`<button type="button" aria-pressed="${i===0}">${s}</button>`).join("")}</div>
     <label for="ciNote">Rep, customer, or shipment details</label><input type="text" id="ciNote" placeholder="Who sent it, tracking number…">
-    <label for="ciLoc">Starting location</label><select id="ciLoc">${zoneOptions(START_LOCS.map(l=>l.id),myZone==="service"?"intake":"checkin")}</select>
     <div class="quick"><div><label for="ciType">Unit type</label><select id="ciType"><option value="">Not set</option>${UNIT_TYPES.map(u=>`<option>${u}</option>`).join("")}</select></div></div>
     <label>What shape is it in?</label><div class="seg" data-seg="cicond">${["New","Good","Needs repair","Defective"].map(c=>`<button type="button" aria-pressed="false">${c}</button>`).join("")}</div>
     <p class="err" id="ciErr" hidden></p>
@@ -1257,7 +1273,7 @@ function openBulkMove(){
   <div class="sheet-body">
     <p class="meta">Pick where they're going, scan every unit, then move them all at once. Each one gets its own entry in its trail.</p>
     <label for="bmDest">Move them to</label><select id="bmDest">${zoneOptions(LOCS.map(l=>l.id))}</select>
-    <div id="bmWhoWrap" hidden><label for="bmWho" id="bmWhoLbl">Who has them?</label><input type="text" id="bmWho" autocomplete="off" list="bmHolders"><datalist id="bmHolders"></datalist></div>
+    <div id="bmWhoWrap" hidden><label for="bmWho" id="bmWhoLbl">Who has them?</label><input type="text" id="bmWho" autocomplete="off" list="bmHolders"><datalist id="bmHolders"></datalist><p class="meta" id="bmWhoHint" hidden></p></div>
     <div id="bmRefWrap" hidden><label for="bmRef">Velocity number <span class="meta">(optional)</span></label><input type="text" id="bmRef" autocomplete="off"></div>
     <label for="bmNote">Note for all of them (optional)</label><input type="text" id="bmNote" placeholder="Tracking number, reason, rack…">
     <div class="scanblock" style="margin-top:12px">
@@ -1277,7 +1293,7 @@ function openBulkMove(){
 function bmDestChanged(){
   const dest=$("#bmDest").value, k=HOLDER[dest];
   $("#bmWhoWrap").hidden=!k; $("#bmRefWrap").hidden=k!=="customer";
-  if(k){ $("#bmWhoLbl").textContent=WHO[k].q; $("#bmWho").placeholder=WHO[k].ph; $("#bmHolders").innerHTML=knownHolders(k).map(h=>`<option value="${esc(h)}">`).join(""); }
+  if(k){ $("#bmWhoLbl").textContent=WHO[k].q; $("#bmWho").placeholder=WHO[k].ph; $("#bmWhoHint").hidden=!WHO[k].hint; $("#bmWhoHint").textContent=WHO[k].hint||""; $("#bmHolders").innerHTML=knownHolders(k).map(h=>`<option value="${esc(h)}">`).join(""); }
   renderMoveList();
 }
 function moveProblem(d,dest){
@@ -1325,7 +1341,8 @@ function openBulk(){
   <div class="sheet-body">
     <p class="meta">Set these once. Every scan after that checks a device straight in, and the camera stays on for the next one.</p>
     <label>Came from</label><div class="seg" data-seg="bsource">${SOURCES.map((s,i)=>`<button type="button" aria-pressed="${i===0}">${s}</button>`).join("")}</div>
-    <label for="bkLoc">Put them in</label><select id="bkLoc">${zoneOptions(START_LOCS.map(l=>l.id),myZone==="service"?"intake":"checkin")}</select>
+    <label for="bkLoc">Where are they right now?</label><select id="bkLoc">${zoneOptions(CHECKIN_LOCS,myZone==="service"?"intake":"checkin")}</select>
+    ${whoFields("bk")}
     <div class="quick"><div><label for="bkType">Unit type</label><select id="bkType"><option value="">Not set</option>${UNIT_TYPES.map(u=>`<option>${u}</option>`).join("")}</select></div><div><label for="bkCond">Condition</label><select id="bkCond"><option value="">Not set</option>${CONDITIONS.map(u=>`<option>${u}</option>`).join("")}</select></div></div>
     <label for="bkNote">Details for this batch (optional)</label><input type="text" id="bkNote" placeholder="e.g. Inventory count, rack B">
     <div class="scanblock" style="margin-top:12px">
@@ -1372,6 +1389,8 @@ async function bulkScan(val, fmt, engine){
   const existing=findBySerial(serial);
   if(existing){ const x=state.devices.get(existing); bulkRows.push({kind:"dup",serial,id:existing}); stat.textContent=x&&isOut(x)?`${serial} ${lastReported(x)}. Tap Check back in on it below.`:`${serial} is already on file. Skipped.`; renderBulk(); return false; }
   if(!state.canWrite){ stat.textContent="You don't have permission to check in devices."; return false; }
+  const bkHk=HOLDER[$("#bkLoc").value], bkHolder=bkHk?$("#bkWho").value.trim():"";
+  if(bkHk && !bkHolder){ stat.textContent=`${WHO[bkHk].need} Then scan again.`; bulkSeen.delete(rawVal); bulkLast.v=""; $("#bkWho").focus(); return false; }
   // Typed serials have to be entered twice in a row before they save
   if(typed){
     if(bulkConfirm!==serialKey(serial)){ bulkConfirm=serialKey(serial); bulkSeen.delete(rawVal); bulkLast.v="";
@@ -1381,7 +1400,7 @@ async function bulkScan(val, fmt, engine){
   }
   const id=uid(), at=now(), loc=$("#bkLoc").value, model=guessModel(serial,g?.gtin);
   const doc={serial, model, mfr:mfrFor(model), mfg:g?.mfg||yearFromSerial(serial), gtin:g?.gtin||"", source:segVal("bsource"), sourceNote:$("#bkNote").value.trim(),
-    location:loc, unitType:$("#bkType").value, condition:$("#bkCond").value, holder:"", createdAt:at, updatedAt:at, createdBy:state.me, entry:typed?"typed":"scanned", events:[{t:"move",from:null,to:loc,at,by:state.me,note:"Bulk check-in",...(typed?{typed:true}:{})}]};
+    location:loc, unitType:$("#bkType").value, condition:$("#bkCond").value, holder:bkHolder, holderRef:bkHk==="customer"?$("#bkRef").value.trim():"", createdAt:at, updatedAt:at, createdBy:state.me, entry:typed?"typed":"scanned", events:[{t:"move",from:null,to:loc,at,by:state.me,note:"Bulk check-in",...(bkHolder?{holder:bkHolder}:{}),...(bkHk==="customer"&&$("#bkRef").value.trim()?{holderRef:$("#bkRef").value.trim()}:{}),...(typed?{typed:true}:{})}]};
   try{ await store.save(id,doc); }catch(ex){ stat.textContent=ex?.code==="quota_exceeded"?"Storage is full. Export the log first.":"Couldn't save that one. Scan it again."; bulkLast.v=""; bulkSeen.delete(rawVal); return false; }
   state.devices.set(id,doc); bulkRows.push({kind:"new",serial,id});
   stat.textContent=`Checked in ${serial}${model?` (${model})`:""}. Ready for the next one.`; toast(`Checked in ${serial}`);
@@ -1421,9 +1440,11 @@ async function submitCheckin(e){
   const mfg=cleanMfg($("#ciMfg").value); if(mfg===null){ err.textContent="Manufacture date should look like 2024-10-29, 2024-10, or 2024."; err.hidden=false; return; }
   if(!mfg && !e.target.dataset.nodate){ e.target.dataset.nodate="1"; err.textContent="No manufacture date yet. Tap Read date or type it from the label, or tap Check in again to save without it."; err.hidden=false; return; }
   const id=uid(), at=now(), loc=$("#ciLoc").value;
+  const hk=HOLDER[loc], holder=hk?$("#ciWho").value.trim():"", holderRef=hk==="customer"?$("#ciRef").value.trim():"";
+  if(hk && !holder){ err.textContent=WHO[hk].need; err.hidden=false; $("#ciWho").focus(); return; }
   const doc={serial, model:$("#ciModel").value.trim(), mfr:mfrVal("ciMfr"), mfg, gtin:$("#ciGtin").value||"", source:segVal("source"), sourceNote:$("#ciNote").value.trim(),
-    location:loc, unitType:$("#ciType").value, condition:segVal("cicond"), holder:"", createdAt:at, updatedAt:at, createdBy:state.me, entry:typed?"typed":"scanned",
-    events:[{t:"move",from:null,to:loc,at,by:state.me,note:"",...(typed?{typed:true}:{})}]};
+    location:loc, unitType:$("#ciType").value, condition:segVal("cicond"), holder, holderRef, createdAt:at, updatedAt:at, createdBy:state.me, entry:typed?"typed":"scanned",
+    events:[{t:"move",from:null,to:loc,at,by:state.me,note:hk?"Checked in where it is":"",...(holder?{holder}:{}),...(holderRef?{holderRef}:{}),...(typed?{typed:true}:{})}]};
   try{ await store.save(id,doc); }catch(ex){ toast(ex?.code==="quota_exceeded"?"Storage is full. Export the log first.":"Couldn't check in. Try again."); return; }
   state.devices.set(id,doc); toast(`Checked in ${serial}`); openDevice(id);
 }
@@ -2117,10 +2138,10 @@ document.addEventListener("change", e=>{ if(e.target.matches?.("[data-mfrsel]"))
   const rf=e.target.dataset?.repf; if(rf){ state.rep[rf]=e.target.value; render(); } });
 document.addEventListener("input", e=>{ if(e.target.id==="ciModel") syncMfr();
   if(e.target.id==="logSerial"){ state.log.serial=e.target.value; render(); const i=$("#logSerial"); if(i){ i.focus(); const n=i.value.length; try{ i.setSelectionRange(n,n); }catch{} } } });
-document.addEventListener("change", e=>{ if(e.target.id==="bmDest") bmDestChanged(); if(e.target.id==="phLib") addPhotos(e.target.files||[],"photos"); if(e.target.id==="phCam") addPhotos(e.target.files||[],shotKind);
+document.addEventListener("change", e=>{ if(e.target.id==="bmDest") bmDestChanged(); if(e.target.id==="ciLoc") whoSync("ci",e.target.value,"source"); if(e.target.id==="bkLoc") whoSync("bk",e.target.value,"bsource"); if(e.target.id==="phLib") addPhotos(e.target.files||[],"photos"); if(e.target.id==="phCam") addPhotos(e.target.files||[],shotKind);
   if(e.target.id==="dFile"){ const f=e.target.files?.[0]; $("#dFileMsg").textContent=f?`Attached: ${f.name}`:"Attach a photo, PDF, Word, or Excel file."; } });
 document.addEventListener("focusout", e=>{ if(e.target.id==="ciSerial") syncYear(); });
-document.addEventListener("change", e=>{ const pair={mvWho:"mvRef",bmWho:"bmRef",eHolder:"eRef"}[e.target.id]; if(!pair) return;
+document.addEventListener("change", e=>{ const pair={mvWho:"mvRef",bmWho:"bmRef",eHolder:"eRef",ciWho:"ciRef",bkWho:"bkRef"}[e.target.id]; if(!pair) return;
   const box=document.getElementById(pair); if(box && !box.value.trim()){ const r=knownRef(e.target.value); if(r) box.value=r; } });
 document.addEventListener("submit", e=>{ if(e.target.id==="ciForm") submitCheckin(e);
   if(e.target.id==="authForm") signIn(e);
