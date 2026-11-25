@@ -248,6 +248,10 @@ input[type=file]{width:100%;font-size:.9rem}
 .scanblock .lead{font-size:.9rem;color:var(--ink-2);margin:0 0 8px}
 .camwrap{position:relative;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:4/3;display:none}
 .camwrap.on{display:block}
+.camctl{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;z-index:2}
+.camctl button{background:rgba(0,0,0,.6);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:7px 12px;font:600 .85rem var(--body);cursor:pointer}
+.camctl button.on{background:#fff;color:#000}
+.camwrap .focusdot{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border:2px solid #ffd54a;border-radius:50%;pointer-events:none;z-index:2}
 .camwrap video{width:100%;height:100%;object-fit:cover;display:block}
 .reticle{position:absolute;left:8%;right:8%;top:38%;height:24%;border:2px solid #fff;border-radius:8px;box-shadow:0 0 0 2000px rgba(0,0,0,.35);pointer-events:none}
 .reticle span{position:absolute;top:-22px;left:0;color:#fff;font:600 .8rem var(--body);text-shadow:0 1px 2px #000}
@@ -1434,8 +1438,7 @@ async function openShots(k){
   $(k==="form"?"#fmSlot":"#phSlot").appendChild(cam); stopShots();
   if(!navigator.mediaDevices?.getUserMedia){ $("#phCam").value=""; $("#phCam").click(); return; }
   try{
-    try{ shotStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}}); }
-    catch{ shotStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}}); }
+    shotStream=await getBackStream();
   }catch{ shotStream=null; $("#phCam").value=""; $("#phCam").click(); return; }
   cam.hidden=false; const v=$("#shotVid"); v.srcObject=shotStream; try{ await v.play(); }catch{} updShotCount();
   cam.scrollIntoView({block:"nearest"});
@@ -2260,15 +2263,108 @@ function onBarcode(val, fmt, engine){
 }
 document.addEventListener("click",e=>{ const b=e.target.closest("[data-copyraw]"); if(!b) return;
   const t=b.getAttribute("data-copyraw"); (navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>{b.textContent="Copied";},()=>{b.textContent="Copy failed, long press the text";}); });
+// Lens control: phones with several back cameras (Galaxy S20 and up) sometimes hand the browser the ultrawide,
+// which can't focus up close. Pick the main lens, remember the choice per phone, and offer zoom, light and tap to focus.
+const LENSKEY="dt-lens", ZOOMKEY="dt-zoom";
+const lsGet=k=>{ try{ return localStorage.getItem(k)||""; }catch{ return ""; } };
+const lsSet=(k,v)=>{ try{ localStorage.setItem(k,v); }catch{} };
+let backCams=[], camTorch=false;
+async function listBackCams(){
+  try{
+    const all=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="videoinput");
+    const back=all.filter(d=>/back|rear|environment|facing back/i.test(d.label));
+    backCams=(back.length?back:all).map(d=>({id:d.deviceId,label:d.label}));
+    // Samsung/Android Chrome names lenses "camera2 0, facing back", "camera2 2, facing back"... the lowest number is the main lens
+    const num=l=>{ const m=/camera2?\s*(\d+)/i.exec(l||""); return m?+m[1]:99; };
+    backCams.sort((a,b)=>num(a.label)-num(b.label));
+  }catch{ backCams=[]; }
+  return backCams;
+}
+async function openBackCam(deviceId){
+  const size={width:{ideal:1920},height:{ideal:1080}};
+  const base=deviceId?{deviceId:{exact:deviceId}}:{facingMode:{ideal:"environment"}};
+  try{ return await navigator.mediaDevices.getUserMedia({video:{...base,...size}}); }
+  catch{ return await navigator.mediaDevices.getUserMedia({video:base}); }
+}
+// Opens the remembered lens, or the main lens once labels are known
+async function getBackStream(){
+  let st=await openBackCam(lsGet(LENSKEY)||null).catch(()=>null);
+  if(!st) st=await openBackCam(null);
+  const cams=await listBackCams();
+  const curId=st.getVideoTracks()[0]?.getSettings?.().deviceId;
+  if(!lsGet(LENSKEY) && cams.length>1 && /camera2?\s*\d/i.test(cams[0].label||"") && cams[0].id && curId && curId!==cams[0].id){
+    st.getTracks().forEach(t=>t.stop());
+    try{ st=await openBackCam(cams[0].id); }catch{ st=await openBackCam(null); }
+  }
+  await tuneTrack(st);
+  return st;
+}
+async function tuneTrack(st){
+  const tr=st?.getVideoTracks()[0]; if(!tr) return;
+  const cap=tr.getCapabilities?.()||{};
+  try{ if(cap.focusMode?.includes("continuous")) await tr.applyConstraints({advanced:[{focusMode:"continuous"}]}); }catch{}
+  const z=parseFloat(lsGet(ZOOMKEY));
+  try{ if(cap.zoom && z) await tr.applyConstraints({advanced:[{zoom:Math.min(cap.zoom.max,Math.max(cap.zoom.min,z))}]}); }catch{}
+}
+function zoomSteps(cap){ if(!cap?.zoom) return []; const out=[cap.zoom.min||1]; for(const z of [1.5,2,3]) if(z>out[0] && z<=cap.zoom.max) out.push(z); return out; }
+function camCtlRender(){
+  const wrap=$("#camwrap"); if(!wrap) return;
+  let bar=wrap.querySelector(".camctl"); if(!bar){ bar=document.createElement("div"); bar.className="camctl"; wrap.appendChild(bar); }
+  const tr=camStream?.getVideoTracks()[0]; const cap=tr?.getCapabilities?.()||{}; const set=tr?.getSettings?.()||{};
+  const curId=set.deviceId||""; const idx=backCams.findIndex(c=>c.id===curId);
+  let h="";
+  if(backCams.length>1) h+=`<button type="button" data-camctl="lens" title="Switch lens">Lens ${idx>=0?idx+1:1} of ${backCams.length}</button>`;
+  const zs=zoomSteps(cap);
+  if(zs.length>1){ const cur=set.zoom||zs[0]; h+=`<button type="button" data-camctl="zoom" class="${cur>zs[0]?"on":""}">${(+cur).toFixed(cur%1?1:0)}x</button>`; }
+  if(cap.torch) h+=`<button type="button" data-camctl="torch" class="${camTorch?"on":""}">Light</button>`;
+  bar.innerHTML=h; bar.hidden=!h;
+}
+async function camCtl(act){
+  const tr=camStream?.getVideoTracks()[0]; if(!tr) return;
+  const cap=tr.getCapabilities?.()||{}; const set=tr.getSettings?.()||{};
+  if(act==="lens" && backCams.length>1){
+    const idx=backCams.findIndex(c=>c.id===set.deviceId); const next=backCams[(idx+1)%backCams.length];
+    const old=camStream; old.getTracks().forEach(t=>t.stop()); camTorch=false;
+    try{ const st=await openBackCam(next.id); camStream=st; lsSet(LENSKEY,next.id); }
+    catch{ camStream=await openBackCam(null).catch(()=>null); if(!camStream){ camStop(); return; } }
+    await tuneTrack(camStream);
+    const v=$("#cam"); v.srcObject=camStream; try{ await v.play(); }catch{}
+    $("#ocrstat").textContent=`Switched to lens ${backCams.findIndex(c=>c.id===next.id)+1}. Use whichever one looks sharpest on the label.`;
+  }
+  if(act==="zoom"){
+    const zs=zoomSteps(cap); if(zs.length<2) return;
+    const cur=set.zoom||zs[0]; const i=zs.findIndex(z=>Math.abs(z-cur)<0.05); const nz=zs[(i+1)%zs.length];
+    try{ await tr.applyConstraints({advanced:[{zoom:nz}]}); lsSet(ZOOMKEY,String(nz)); }catch{}
+    if(nz>zs[0]) $("#ocrstat").textContent="Zoomed in. Hold the phone farther back, about 8 to 12 inches, so it can focus.";
+  }
+  if(act==="torch" && cap.torch){ camTorch=!camTorch; try{ await tr.applyConstraints({advanced:[{torch:camTorch}]}); }catch{ camTorch=false; } }
+  camCtlRender();
+}
+async function tapFocus(e){
+  const tr=camStream?.getVideoTracks()[0]; if(!tr) return;
+  const wrap=$("#camwrap"), r=wrap.getBoundingClientRect(); const x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
+  const dot=document.createElement("div"); dot.className="focusdot"; dot.style.left=(x*100)+"%"; dot.style.top=(y*100)+"%"; wrap.appendChild(dot); setTimeout(()=>dot.remove(),800);
+  const cap=tr.getCapabilities?.()||{};
+  try{
+    if(cap.focusMode?.includes("single-shot")){
+      await tr.applyConstraints({advanced:[{focusMode:"single-shot",pointsOfInterest:[{x,y}]}]});
+      setTimeout(()=>{ if(cap.focusMode.includes("continuous")) tr.applyConstraints({advanced:[{focusMode:"continuous"}]}).catch(()=>{}); },1500);
+    }else if(cap.focusMode?.includes("continuous")){
+      await tr.applyConstraints({advanced:[{focusMode:"continuous",pointsOfInterest:[{x,y}]}]});
+    }
+  }catch{}
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-camctl]"); if(b){ e.preventDefault(); camCtl(b.dataset.camctl); return; }
+  if(e.target.closest("#camwrap") && !e.target.closest(".camctl") && camStream) tapFocus(e);
+});
 async function camStart(){
   const stat=$("#ocrstat"); $("#cand").innerHTML="";
   if(!navigator.mediaDevices?.getUserMedia){ stat.textContent="This browser can't open the camera. Type the serial instead."; return; }
   try{
-    try{ camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}}); }
-    catch{ camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}}); }
-    try{ const tr=camStream.getVideoTracks()[0]; const cap=tr.getCapabilities?.()||{}; if(cap.focusMode?.includes("continuous")) await tr.applyConstraints({advanced:[{focusMode:"continuous"}]}); }catch{}
+    camTorch=false; camStream=await getBackStream();
     const v=$("#cam"); v.srcObject=camStream; await v.play();
-    $("#camwrap").classList.add("on"); $("#capbar").hidden=false;
+    $("#camwrap").classList.add("on"); $("#capbar").hidden=false; camCtlRender();
     document.querySelector('[data-act="camstart"]').hidden=true;
     stat.textContent="Looking for a barcode… If the sticker has none, line up the serial text and tap Read text.";
     startBarcodeLoop();
